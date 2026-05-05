@@ -25,6 +25,13 @@ const loadEnv = () => {
     }
   }
 
+  // Set process.env with YAML values (so they're accessible via process.env)
+  for (const [key, value] of Object.entries(config)) {
+    if (value !== undefined && value !== '' && !process.env[key]) {
+      process.env[key] = String(value);
+    }
+  }
+
   // Override with environment variables
   for (const [key, value] of Object.entries(process.env)) {
     if (value !== undefined && value !== '') {

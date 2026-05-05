@@ -19,16 +19,33 @@ import {
   generateSecureToken,
   generateRefreshToken,
 } from '../../utils/random/token.util';
-import { recoverWalletAddress } from '../../common/utils/wallet.util';
+import { recoverWalletAddress } from '../../utils/wallet/wallet.util';
 import { ChallengeType, IdentifierType } from './model';
 import { AuditAction } from '../audit-log/model';
 
-const OTP_EXPIRE_TTL_MS = 5 * 60 * 1000;
-const OTP_RESEND_LIMIT_TTL_MS = 60 * 60 * 1000;
-const MAX_EMAIL_ATTEMPTS = 5;
-const OTP_MAX_RESEND_ATTEMPTS = 5;
-const RESET_PASSWORD_TOKEN_TTL_MS = 15 * 60 * 1000;
-const METAMASK_CHALLENGE_TTL_MS = 2 * 60 * 1000;
+// Helper to parse env numbers with fallback
+const getEnvNumber = (key: string, fallback: number): number => {
+  const val = process.env[key];
+  return val ? parseFloat(val) : fallback;
+};
+
+// TTL values from config (in milliseconds)
+const getOtpExpireMs = () =>
+  getEnvNumber('OTP_EXPIRE_MINUTES', 5) * 60 * 1000;
+const getOtpResendLimitMs = () =>
+  getEnvNumber('OTP_RESEND_LIMIT_TTL_MINUTES', 60) * 60 * 1000;
+const getMaxEmailAttempts = () =>
+  getEnvNumber('OTP_MAX_ATTEMPTS_PER_HOUR', 5);
+const getOtpMaxResendAttempts = () =>
+  getEnvNumber('OTP_MAX_RESEND_ATTEMPTS', 5);
+const getResetPasswordTokenMs = () =>
+  getEnvNumber('RESET_PASSWORD_TOKEN_TTL_MINUTES', 15) * 60 * 1000;
+const getMetaMaskChallengeMs = () =>
+  getEnvNumber('METAMASK_CHALLENGE_TTL_MINUTES', 2) * 60 * 1000;
+const getSessionTtlMs = () =>
+  getEnvNumber('SESSION_TTL_HOURS', 24) * 60 * 60 * 1000;
+const getRefreshTokenTtlMs = () =>
+  getEnvNumber('REFRESH_TOKEN_TTL_DAYS', 7) * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -64,8 +81,8 @@ export class AuthService {
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = md5(refreshToken);
     const now = new Date();
-    const sessionTtlMs = 24 * 60 * 60 * 1000;
-    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
+    const sessionTtlMs = getSessionTtlMs();
+    const refreshTokenTtlMs = getRefreshTokenTtlMs();
 
     const newSession = await this.sessionRepo.create({
       userId: currentUser.id,
@@ -115,7 +132,7 @@ export class AuthService {
       identifier: email,
       tempPassword: hashedPassword,
       challenge: hashedOTP,
-      expiredAt: new Date(now.getTime() + OTP_EXPIRE_TTL_MS),
+      expiredAt: new Date(now.getTime() + getOtpExpireMs()),
       attempts: 0,
       authToken: authTokenHash,
     });
@@ -139,7 +156,10 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired OTP code!');
     }
 
-    await this.checkUserNotExists(authChallenge.identifier);
+    const existingUser = await this.userRepo.findByEmail(authChallenge.identifier);
+    if (existingUser) {
+      throw new ConflictException('User already exists!');
+    }
 
     const currentUser = await this.userRepo.create({
       email: authChallenge.identifier,
@@ -147,13 +167,14 @@ export class AuthService {
     });
 
     authChallenge.verifiedAt = now;
+    authChallenge.isUsed = true;
     await this.authRepo.upsert(authChallenge);
 
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = md5(refreshToken);
     const now2 = new Date();
-    const sessionTtlMs = 24 * 60 * 60 * 1000;
-    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
+    const sessionTtlMs = getSessionTtlMs();
+    const refreshTokenTtlMs = getRefreshTokenTtlMs();
 
     const session = await this.sessionRepo.create({
       userId: currentUser.id,
@@ -200,7 +221,7 @@ export class AuthService {
     const hashedOTP = await hashBcrypt(otpCode);
 
     authChallenge.attempts += 1;
-    authChallenge.expiredAt = new Date(now.getTime() + OTP_EXPIRE_TTL_MS);
+    authChallenge.expiredAt = new Date(now.getTime() + getOtpExpireMs());
     authChallenge.challenge = hashedOTP;
 
     await this.authRepo.upsert(authChallenge);
@@ -235,7 +256,7 @@ export class AuthService {
       identifier: email,
       tempPassword: null,
       challenge: hashedOTP,
-      expiredAt: new Date(now.getTime() + OTP_EXPIRE_TTL_MS),
+      expiredAt: new Date(now.getTime() + getOtpExpireMs()),
       attempts: 0,
       authToken: authTokenHash,
     });
@@ -262,7 +283,7 @@ export class AuthService {
 
     await this.authRepo.createPasswordReset({
       identifier: authChallenge.identifier,
-      expiredAt: new Date(now.getTime() + RESET_PASSWORD_TOKEN_TTL_MS),
+      expiredAt: new Date(now.getTime() + getResetPasswordTokenMs()),
       resetToken: resetPwdTokenHash,
     });
 
@@ -299,8 +320,8 @@ export class AuthService {
     const now = new Date();
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = md5(refreshToken);
-    const sessionTtlMs = 24 * 60 * 60 * 1000;
-    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
+    const sessionTtlMs = getSessionTtlMs();
+    const refreshTokenTtlMs = getRefreshTokenTtlMs();
 
     const newSession = await this.sessionRepo.create({
       userId: currentUser.id,
@@ -378,7 +399,7 @@ export class AuthService {
 
     const nonce = generateSecureToken(16);
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + METAMASK_CHALLENGE_TTL_MS);
+    const expiresAt = new Date(now.getTime() + getMetaMaskChallengeMs());
 
     await this.authRepo.upsert({
       challengeType: ChallengeType.WALLET_SIGNIN,
@@ -439,8 +460,8 @@ export class AuthService {
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = md5(refreshToken);
     const now2 = new Date();
-    const sessionTtlMs = 24 * 60 * 60 * 1000;
-    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
+    const sessionTtlMs = getSessionTtlMs();
+    const refreshTokenTtlMs = getRefreshTokenTtlMs();
 
     const newSession = await this.sessionRepo.create({
       userId: currentUser.id,
@@ -487,7 +508,7 @@ export class AuthService {
 
     const nonce = generateSecureToken(16);
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + METAMASK_CHALLENGE_TTL_MS);
+    const expiresAt = new Date(now.getTime() + getMetaMaskChallengeMs());
 
     await this.authRepo.upsert({
       challengeType: ChallengeType.WALLET_LINK,
@@ -585,8 +606,8 @@ export class AuthService {
     const elapsed = now.getTime() - new Date(authChallenge.createdAt).getTime();
 
     if (
-      authChallenge.attempts >= OTP_MAX_RESEND_ATTEMPTS &&
-      elapsed <= OTP_RESEND_LIMIT_TTL_MS
+      authChallenge.attempts >= getOtpMaxResendAttempts() &&
+      elapsed <= getOtpResendLimitMs()
     ) {
       throw new HttpException(
         'Too many OTP resend attempts, please try again later.',
@@ -594,7 +615,7 @@ export class AuthService {
       );
     }
 
-    if (elapsed > OTP_RESEND_LIMIT_TTL_MS) {
+    if (elapsed > getOtpResendLimitMs()) {
       authChallenge.attempts = 0;
     }
   }
@@ -607,7 +628,7 @@ export class AuthService {
       email,
       challengeType,
     );
-    if (count >= MAX_EMAIL_ATTEMPTS) {
+    if (count >= getMaxEmailAttempts()) {
       throw new HttpException(
         'Too many OTP resend attempts, please try again later.',
         HttpStatus.TOO_MANY_REQUESTS,
