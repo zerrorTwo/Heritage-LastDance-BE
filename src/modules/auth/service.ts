@@ -350,6 +350,61 @@ export class AuthService {
     };
   }
 
+  async googleLogin(
+    googleProfile: { googleId: string; email: string; firstName: string; lastName: string },
+    ipAddress: string,
+    deviceInfo?: string,
+  ) {
+    const { email, googleId } = googleProfile;
+
+    // Check if user exists by email
+    let currentUser = await this.userRepo.findByEmail(email);
+
+    if (!currentUser) {
+      // Create new user with Google ID
+      currentUser = await this.userRepo.create({
+        email,
+        // You might want to add googleId to UserModel
+      });
+    }
+
+    if (!currentUser.isActiveUser()) {
+      throw new BadRequestException('User is inactive!');
+    }
+
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = md5(refreshToken);
+    const now = new Date();
+    const sessionTtlMs = getSessionTtlMs();
+    const refreshTokenTtlMs = getRefreshTokenTtlMs();
+
+    const newSession = await this.sessionRepo.create({
+      userId: currentUser.id,
+      refreshTokenHash,
+      ipAddress,
+      deviceInfo: deviceInfo ?? null,
+      expiredAt: new Date(now.getTime() + sessionTtlMs),
+      refreshedExpiredAt: new Date(now.getTime() + refreshTokenTtlMs),
+    });
+
+    const accessToken = this.createAccessToken(currentUser.id, newSession.id);
+
+    await this.auditRepo.create({
+      userId: currentUser.id,
+      action: AuditAction.LOGIN,
+      resourceType: 'SESSION',
+      resourceId: newSession.id,
+      ipAddress,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      sessionId: newSession.id,
+      user: currentUser,
+    };
+  }
+
   async changePassword(
     userId: string,
     sessionId: string,
