@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Out of Balance Alert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: #DC2626;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .alert {
+            background: #FEF2F2;
+            border: 1px solid #DC2626;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .balance {
+            font-size: 24px;
+            font-weight: bold;
+            color: #DC2626;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .urgent {
+            background: #FEE2E2;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #DC2626;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AIOZ STREAM</h1>
+        <p>⚠️ URGENT: Balance Depleted</p>
+    </div>
+    
+    <div class="content">
+        <h2>Your Wallet Balance is Empty</h2>
+        
+        <div class="alert">
+            <p><strong>🚨 Your wallet balance has reached zero!</strong></p>
+            <p>Current balance:</p>
+            <div class="balance">
+                0.00 {{currency}}
+            </div>
+        </div>
+        
+        <div class="urgent">
+            <h3>⚠️ Immediate Action Required</h3>
+            <p><strong>Your services have been suspended!</strong></p>
+            <ul>
+                <li>Streaming services are paused</li>
+                <li>Access to premium features is disabled</li>
+                <li>API calls may be limited</li>
+                <li>Scheduled tasks are on hold</li>
+            </ul>
+        </div>
+        
+        <p><strong>To restore your services:</strong></p>
+        <ol>
+            <li>Add funds to your wallet immediately</li>
+            <li>Minimum top-up amount: {{minimumTopUp}} {{currency}}</li>
+            <li>Services will resume within 5 minutes after payment</li>
+        </ol>
+        
+        <p><strong>Payment options:</strong></p>
+        <ul>
+            <li>Credit/Debit card</li>
+            <li>Bank transfer</li>
+            <li>Cryptocurrency</li>
+            <li>PayPal</li>
+        </ul>
+        
+        <p>If you need assistance with payment or have questions about your account, please contact our support team immediately.</p>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{CopyrightYear}} AIOZ STREAM. All rights reserved.</p>
+        <p>
+            <a href="{{TermOfServiceUrl}}">Terms of Service</a> | 
+            <a href="{{EmailFeedback}}">Contact Support</a>
+        </p>
+        <p>
+            Follow us: 
+            <a href="{{TelegramUrl}}">Telegram</a> | 
+            <a href="{{TwitterUrl}}">Twitter</a> | 
+            <a href="{{GithubUrl}}">GitHub</a>
+        </p>
+    </div>
+</body>
+</html>

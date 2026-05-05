@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exclusive Program Request</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: #8B5CF6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .exclusive-badge {
+            background: linear-gradient(135deg, #8B5CF6, #6366F1);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            text-align: center;
+            font-weight: bold;
+            margin: 20px 0;
+            display: inline-block;
+        }
+        .request-details {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .benefits {
+            background: #F3E8FF;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .benefits h3 {
+            color: #8B5CF6;
+            margin-top: 0;
+        }
+        .benefits ul {
+            margin: 0;
+        }
+        .benefits li {
+            margin-bottom: 10px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #8B5CF6;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AIOZ STREAM</h1>
+        <p>Exclusive Program</p>
+    </div>
+    
+    <div class="content">
+        <h2>Request to Join Exclusive Program</h2>
+        
+        <div class="exclusive-badge">
+            🌟 EXCLUSIVE PROGRAM REQUEST 🌟
+        </div>
+        
+        <p>Hello {{adminName}},</p>
+        
+        <p>We have received a request to join our exclusive program:</p>
+        
+        <div class="request-details">
+            <h3>Request Details</h3>
+            <p><strong>Applicant Name:</strong> {{applicantName}}</p>
+            <p><strong>Email:</strong> {{applicantEmail}}</p>
+            <p><strong>User ID:</strong> {{userId}}</p>
+            <p><strong>Account Type:</strong> {{accountType}}</p>
+            <p><strong>Current Plan:</strong> {{currentPlan}}</p>
+            <p><strong>Requested Date:</strong> {{requestDate}}</p>
+            
+            <h4>Why they want to join:</h4>
+            <p>"{{reason}}"</p>
+            
+            {{#if additionalInfo}}
+            <h4>Additional Information:</h4>
+            <p>{{additionalInfo}}</p>
+            {{/if}}
+        </div>
+        
+        <div class="benefits">
+            <h3>🎯 Exclusive Program Benefits</h3>
+            <ul>
+                <li>✨ Priority support 24/7</li>
+                <li>🚀 Advanced features access</li>
+                <li>💎 Premium content streaming</li>
+                <li>📊 Enhanced analytics dashboard</li>
+                <li>🔧 Custom API integrations</li>
+                <li>🎁 Exclusive events and webinars</li>
+                <li>💰 Special pricing and discounts</li>
+            </ul>
+        </div>
+        
+        <h3>Next Steps</h3>
+        <p>Please review this request and take appropriate action:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{approvalLink}}" class="cta-button">Review Request</a>
+        </div>
+        
+        <p>You can:</p>
+        <ul>
+            <li>Approve the request and upgrade their account</li>
+            <li>Request additional information</li>
+            <li>Schedule a call with the applicant</li>
+            <li>Decline the request with feedback</li>
+        </ul>
+        
+        <p>This request will be automatically reviewed in {{Days}} days if no action is taken.</p>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{CopyrightYear}} AIOZ STREAM. All rights reserved.</p>
+        <p>
+            <a href="{{TermOfServiceUrl}}">Terms of Service</a> | 
+            <a href="{{EmailFeedback}}">Contact Support</a>
+        </p>
+        <p>
+            Follow us: 
+            <a href="{{TelegramUrl}}">Telegram</a> | 
+            <a href="{{TwitterUrl}}">Twitter</a> | 
+            <a href="{{GithubUrl}}">GitHub</a>
+        </p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Receipt</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: #6366F1;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .receipt {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .receipt-header {
+            border-bottom: 2px solid #6366F1;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .receipt-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .receipt-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 18px;
+            color: #6366F1;
+        }
+        .total {
+            text-align: right;
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #6366F1;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+        .payment-method {
+            background: #F3F4F6;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AIOZ STREAM</h1>
+        <p>Monthly Receipt</p>
+    </div>
+    
+    <div class="content">
+        <h2>Your Monthly Receipt</h2>
+        <p>Thank you for using AIOZ STREAM! Here's your receipt for {{month}} {{year}}:</p>
+        
+        <div class="receipt">
+            <div class="receipt-header">
+                <h3>Receipt #{{receiptNumber}}</h3>
+                <p><strong>Date:</strong> {{receiptDate}}</p>
+                <p><strong>Customer:</strong> {{customerName}}</p>
+                <p><strong>Email:</strong> {{customerEmail}}</p>
+            </div>
+            
+            <h4>Services & Usage</h4>
+            
+            {{#each items}}
+            <div class="receipt-item">
+                <span>{{description}}</span>
+                <span>{{currency}} {{amount}}</span>
+            </div>
+            {{/each}}
+            
+            <div class="receipt-item">
+                <span>Subtotal</span>
+                <span>{{currency}} {{subtotal}}</span>
+            </div>
+            
+            {{#if discount}}
+            <div class="receipt-item">
+                <span>Discount ({{discountPercentage}}%)</span>
+                <span>-{{currency}} {{discount}}</span>
+            </div>
+            {{/if}}
+            
+            {{#if tax}}
+            <div class="receipt-item">
+                <span>Tax ({{taxPercentage}}%)</span>
+                <span>{{currency}} {{tax}}</span>
+            </div>
+            {{/if}}
+            
+            <div class="receipt-item">
+                <span><strong>Total</strong></span>
+                <span><strong>{{currency}} {{total}}</strong></span>
+            </div>
+        </div>
+        
+        <div class="payment-method">
+            <h4>Payment Method</h4>
+            <p>{{paymentMethod}}</p>
+            {{#if paymentId}}
+            <p>Transaction ID: {{paymentId}}</p>
+            {{/if}}
+        </div>
+        
+        <h4>Usage Summary</h4>
+        <ul>
+            <li>Streaming Hours: {{streamingHours}}</li>
+            <li>API Calls: {{apiCalls}}</li>
+            <li>Storage Used: {{storageUsed}} GB</li>
+            <li>Bandwidth: {{bandwidth}} GB</li>
+        </ul>
+        
+        <p>You can download detailed reports from your dashboard at any time.</p>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{CopyrightYear}} AIOZ STREAM. All rights reserved.</p>
+        <p>
+            <a href="{{TermOfServiceUrl}}">Terms of Service</a> | 
+            <a href="{{EmailFeedback}}">Contact Support</a>
+        </p>
+        <p>
+            Follow us: 
+            <a href="{{TelegramUrl}}">Telegram</a> | 
+            <a href="{{TwitterUrl}}">Twitter</a> | 
+            <a href="{{GithubUrl}}">GitHub</a>
+        </p>
+    </div>
+</body>
+</html>

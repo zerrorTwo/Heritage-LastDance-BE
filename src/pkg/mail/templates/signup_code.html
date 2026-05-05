@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: #10B981;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .code {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 8px;
+            color: #10B981;
+            background: #ECFDF5;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AIOZ STREAM</h1>
+        <p>Welcome to AIOZ STREAM!</p>
+    </div>
+    
+    <div class="content">
+        <h2>Verify Your Email Address</h2>
+        <p>Thank you for signing up! Please use the following verification code to complete your registration:</p>
+        
+        <div class="code">
+            {{verificationCode}}
+        </div>
+        
+        <p><strong>This code will expire in 5 minutes.</strong></p>
+        <p>If you didn't sign up for AIOZ STREAM, please ignore this email.</p>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{CopyrightYear}} AIOZ STREAM. All rights reserved.</p>
+        <p>
+            <a href="{{TermOfServiceUrl}}">Terms of Service</a> | 
+            <a href="{{EmailFeedback}}">Contact Support</a>
+        </p>
+        <p>
+            Follow us: 
+            <a href="{{TelegramUrl}}">Telegram</a> | 
+            <a href="{{TwitterUrl}}">Twitter</a> | 
+            <a href="{{GithubUrl}}">GitHub</a>
+        </p>
+    </div>
+</body>
+</html>

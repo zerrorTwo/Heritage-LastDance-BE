@@ -1,0 +1,30 @@
+export const ErrorMessages = {
+  LOGIN_FAIL:                  'Invalid email or password.',
+  INVALID_TOKEN:               'Token is invalid.',
+  NO_PERMISSION:               'You do not have permission to access this resource.',
+  FORMAT_ERROR:                'Request data format is invalid.',
+  NOT_FOUND:                   'Resource not found.',
+  EMAIL_ALREADY_EXISTS:        'Email is already registered.',
+  CHALLENGE_NOT_FOUND:         'Challenge not found or expired.',
+  OTP_INVALID:                 'Invalid OTP code.',
+  OTP_TOO_MANY_ATTEMPTS:       'Too many failed OTP attempts.',
+  OTP_RATE_LIMIT:              'Too many OTP requests. Please try again in 1 hour.',
+  RESET_TOKEN_INVALID:         'Reset token is invalid or expired.',
+  SESSION_EXPIRED:             'Session has expired. Please sign in again.',
+  INTERNAL_ERROR:              'Internal server error.',
+} as const;
+
+export const SuccessMessages = {
+  SIGN_IN:                     'Signed in successfully.',
+  SIGN_UP:                     'Account created successfully.',
+  OTP_SENT:                    'OTP sent to your email.',
+  OTP_VERIFIED:                'OTP verified successfully.',
+  LOGGED_OUT:                  'Logged out successfully.',
+  TOKEN_REFRESHED:             'Access token refreshed successfully.',
+  PASSWORD_CHANGED:            'Password changed successfully.',
+  FORGOT_PASSWORD_REQUESTED:   'If your email is registered, you will receive an OTP.',
+  CREATED:                     'Created successfully.',
+  FETCHED:                     'Fetched successfully.',
+  UPDATED:                     'Updated successfully.',
+  DELETED:                     'Deleted successfully.',
+} as const;
