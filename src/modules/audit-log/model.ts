@@ -4,14 +4,21 @@ import {
   Entity,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { AuditAction } from './enum';
+
+export enum AuditAction {
+  LOGIN = 'LOGIN',
+  LOGOUT = 'LOGOUT',
+  SIGNUP = 'SIGNUP',
+  RESET_PASSWORD = 'RESET_PASSWORD',
+  CHANGE_PASSWORD = 'CHANGE_PASSWORD',
+}
 
 @Entity('audit_logs')
 export class AuditLogModel {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   userId!: string | null;
 
   @Column({ type: 'enum', enum: AuditAction })
@@ -20,13 +27,13 @@ export class AuditLogModel {
   @Column({ type: 'varchar', length: 50, nullable: true })
   ipAddress!: string | null;
 
-  @Column({ type: 'text', nullable: true })
-  userAgent!: string | null;
+  @Column({ type: 'varchar', nullable: true })
+  resourceType!: string | null;
 
-  @Column({ type: 'json', nullable: true })
-  metadata!: Record<string, any> | null;
+  @Column({ type: 'uuid', nullable: true })
+  resourceId!: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 }
 
@@ -34,8 +41,8 @@ export interface CreateAuditLogData {
   userId?: string | null;
   action: AuditAction;
   ipAddress?: string | null;
-  userAgent?: string | null;
-  metadata?: Record<string, any> | null;
+  resourceType?: string | null;
+  resourceId?: string | null;
 }
 
 export interface IAuditLogRepository {

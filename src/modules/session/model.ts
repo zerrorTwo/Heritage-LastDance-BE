@@ -1,63 +1,57 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 
 @Entity('sessions')
 export class SessionModel {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
+
+  @Column({ type: 'uuid' })
+  userId!: string;
 
   @Column({ type: 'varchar' })
-  userId: string;
+  refreshTokenHash!: string;
 
-  /**
-   * MD5(rawRefreshToken) — raw token is sent to client, only hash stored here.
-   * Unique index ensures one-to-one token mapping.
-   */
-  @Column({ unique: true })
-  refreshToken: string;
+  @Column({ type: 'varchar' })
+  ipAddress!: string;
 
-  @Column({ length: 50 })
-  ipAddress: string;
+  @Column({ type: 'varchar', nullable: true })
+  deviceInfo!: string | null;
 
-  @Column({ type: 'text', nullable: true })
-  deviceInfo: string | null;
+  @Column({ type: 'boolean', default: false })
+  isRevoked!: boolean;
 
-  /** Absolute expiry — access is forbidden after this regardless of activity. */
-  @Column({ type: 'datetime' })
-  expiredAt: Date;
+  @Column({ type: 'timestamptz', nullable: true })
+  lastUsedAt!: Date | null;
 
-  /** Sliding expiry — refreshed on each use, extends session lifetime. */
-  @Column({ type: 'datetime' })
-  refreshedExpiredAt: Date;
+  @Column({ type: 'timestamptz' })
+  expiredAt!: Date;
 
-  @Column({ default: false })
-  isRevoked: boolean;
+  @Column({ type: 'timestamptz' })
+  refreshedExpiredAt!: Date;
 
-  @Column({ type: 'datetime', nullable: true })
-  lastUsedAt: Date | null;
-
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt!: Date;
 }
 
 export interface CreateSessionData {
   userId: string;
-  refreshToken: string;
+  refreshTokenHash: string;
   ipAddress: string;
-  deviceInfo: string | null;
+  deviceInfo?: string | null;
   expiredAt: Date;
   refreshedExpiredAt: Date;
 }
 
 export interface ISessionRepository {
   create(data: CreateSessionData): Promise<SessionModel>;
-  findByRefreshToken(md5Hash: string): Promise<SessionModel | null>;
-  findById(id: string): Promise<SessionModel | null>;
-  revoke(id: string): Promise<void>;
-  revokeAllByUserId(userId: string): Promise<void>;
-  updateLastUsed(id: string): Promise<void>;
+  getById(id: string): Promise<SessionModel | null>;
+  getByRefreshToken(hash: string): Promise<SessionModel | null>;
+  update(session: Partial<SessionModel>): Promise<void>;
+  deleteById(id: string): Promise<void>;
+  revokeAllByUserId(userId: string, excludeSessionIds?: string[]): Promise<void>;
 }

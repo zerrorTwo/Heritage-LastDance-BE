@@ -1,44 +1,52 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { AuthChallengeModel } from './model';
-import { AuthService } from './service';
-import { AuthController } from './controller';
-import { AuthChallengeRepository } from './repository';
-import { AUTH_CHALLENGE_REPOSITORY } from '../../common/constants/injection-tokens';
-import { UsersModule } from '../users/module';
-import { SessionModule } from '../session/module';
-import { AuditLogModule } from '../audit-log/module';
-import { MailService } from '../../pkg/mail/mail.service';
-import { JwtStrategy } from '../../common/strategies/jwt.strategy';
-import { GoogleStrategy } from '../../common/strategies/google.strategy';
-import loadEnv from '../../config/configuration';
 
-const env = loadEnv();
+import { AuthController } from './controller';
+import { AuthService } from './service';
+import { AuthRepository } from './repository';
+import { AuthChallengeModel, PasswordResetModel } from './model';
+
+import { SessionModel } from '../session/model';
+import { SessionRepository } from '../session/repository';
+
+import { UserModel } from '../user/model';
+import { UserRepository } from '../user/repository';
+
+import { AuditLogModel } from '../audit-log/model';
+import { AuditLogRepository } from '../audit-log/repository';
+
+import { JwtStrategy } from '../../common/strategies/jwt.strategy';
+import { MailModule } from '../../pkg/mail/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AuthChallengeModel]),
-    PassportModule,
-    JwtModule.register({
-      secret: env.JWT_SECRET as string,
-      signOptions: { expiresIn: (env.JWT_EXPIRES_IN as any) ?? '15m' },
+    TypeOrmModule.forFeature([
+      AuthChallengeModel,
+      PasswordResetModel,
+      SessionModel,
+      UserModel,
+      AuditLogModel,
+    ]),
+    JwtModule.registerAsync({
+      imports: [],
+      inject: [],
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET || 'dev-secret-key',
+        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+      }),
     }),
-    UsersModule,
-    SessionModule, // provides SESSION_REPOSITORY
-    AuditLogModule,
-  ],
-  providers: [
-    AuthService,
-    MailService,
-    JwtStrategy,
-    GoogleStrategy,
-    {
-      provide: AUTH_CHALLENGE_REPOSITORY,
-      useClass: AuthChallengeRepository,
-    },
+    MailModule,
   ],
   controllers: [AuthController],
+  providers: [
+    AuthService,
+    AuthRepository,
+    SessionRepository,
+    UserRepository,
+    AuditLogRepository,
+    JwtStrategy,
+  ],
+  exports: [AuthService],
 })
 export class AuthModule {}

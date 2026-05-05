@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+.vscode
+.idea
+env
+.env
+configs/
+!config.yaml
+!dev.yaml
+!staging.yaml
+!production.yaml
+!config.example.yaml

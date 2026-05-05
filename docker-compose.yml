@@ -1,40 +1,32 @@
-version: '3.9'
-
+version: '3.8'
 services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: aioz
+      POSTGRES_PASSWORD: aiozpass
+      POSTGRES_DB: aioz_map
+    ports:
+      - "5432:5432"
   app:
     build: .
-    ports:
-      - '3000:3000'
-    environment:
-      NODE_ENV: local
-      HOST: ${HOST:-mysql}
-      PORT_DB: ${PORT_DB:-3306}
-      USERNAME: ${USERNAME:-heritage}
-      PASSWORD: ${PASSWORD:-heritage_pass}
-      NAME: ${NAME:-heritage_db}
-    volumes:
-      - ./configs:/app/configs:ro
     depends_on:
-      mysql:
-        condition: service_healthy
-    restart: unless-stopped
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-rootpass}
-      MYSQL_DATABASE: ${DB_NAME:-heritage_db}
-      MYSQL_USER: ${DB_USER:-heritage}
-      MYSQL_PASSWORD: ${DB_PASS:-heritage_pass}
+      - db
     ports:
-      - '3306:3306'
-    volumes:
-      - mysqldata:/var/lib/mysql
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${DB_ROOT_PASS:-rootpass}']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-volumes:
-  mysqldata:
+      - "3000:3000"
+    environment:
+      NODE_ENV: docker
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: aioz
+      DATABASE_PASS: aiozpass
+      DATABASE_NAME: aioz_map
+      JWT_SECRET: devsecret
+      JWT_EXPIRES_IN: 1h
+      SESSION_TTL_HOURS: 24
+      REFRESH_TOKEN_TTL_DAYS: 7
+      MAIL_HOST: smtp.example.com
+      MAIL_PORT: 587
+      MAIL_USER: noreply@example.com
+      MAIL_PASS: secret
+      MAIL_FROM: "AIOZ <noreply@example.com>"

@@ -1,13 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SessionModel } from './model';
-import type { ISessionRepository, CreateSessionData } from './model';
+import { SessionModel, ISessionRepository, CreateSessionData } from './model';
 
-/**
- * MySQL/TypeORM implementation of ISessionRepository.
- * Injected via SESSION_REPOSITORY token — never imported directly by services.
- */
 @Injectable()
 export class SessionRepository implements ISessionRepository {
   constructor(
@@ -16,32 +11,36 @@ export class SessionRepository implements ISessionRepository {
   ) {}
 
   async create(data: CreateSessionData): Promise<SessionModel> {
-    const session = this.repo.create(data);
-    return this.repo.save(session);
+    return this.repo.save(data);
   }
 
-  findByRefreshToken(md5Hash: string): Promise<SessionModel | null> {
-    return this.repo
-      .createQueryBuilder('s')
-      .where('s.refreshToken = :md5Hash', { md5Hash })
-      .andWhere('s.isRevoked = false')
-      .andWhere('s.refreshedExpiredAt > NOW()')
-      .getOne();
+  async getById(id: string): Promise<SessionModel | null> {
+    return this.repo.findOneBy({ id });
   }
 
-  findById(id: string): Promise<SessionModel | null> {
-    return this.repo.findOne({ where: { id } });
+  async getByRefreshToken(hash: string): Promise<SessionModel | null> {
+    return this.repo.findOneBy({ refreshTokenHash: hash });
   }
 
-  async revoke(id: string): Promise<void> {
-    await this.repo.update({ id }, { isRevoked: true });
+  async update(session: Partial<SessionModel>): Promise<void> {
+    await this.repo.update(session.id!, session);
   }
 
-  async revokeAllByUserId(userId: string): Promise<void> {
-    await this.repo.update({ userId, isRevoked: false }, { isRevoked: true });
+  async deleteById(id: string): Promise<void> {
+    await this.repo.delete(id);
   }
 
-  async updateLastUsed(id: string): Promise<void> {
-    await this.repo.update({ id }, { lastUsedAt: new Date() });
+  async revokeAllByUserId(userId: string, excludeSessionIds?: string[]): Promise<void> {
+    const query = this.repo
+      .createQueryBuilder()
+      .update()
+      .set({ isRevoked: true })
+      .where('userId = :userId', { userId });
+
+    if (excludeSessionIds?.length) {
+      query.andWhere('id NOT IN (:...excludeSessionIds)', { excludeSessionIds });
+    }
+
+    await query.execute();
   }
 }

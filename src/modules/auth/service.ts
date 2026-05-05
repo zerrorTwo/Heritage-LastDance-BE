@@ -1,464 +1,736 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import {
-  AUTH_CHALLENGE_REPOSITORY,
-  SESSION_REPOSITORY,
-  USER_REPOSITORY,
-} from '../../common/constants/injection-tokens';
-import type { IAuthChallengeRepository } from './model';
-import type { ISessionRepository } from '../session/model';
-import type { IUserRepository } from '../users/model';
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { Inject } from '@nestjs/common';
+import { AuthRepository } from './repository';
+import { SessionRepository } from '../session/repository';
+import { UserRepository } from '../user/repository';
+import { AuditLogRepository } from '../audit-log/repository';
 import { MailService } from '../../pkg/mail/mail.service';
 import { hashBcrypt, compareBcrypt, md5 } from '../../utils/hash/hash.util';
 import { generateOTP } from '../../utils/random/otp.util';
 import {
-  generateRefreshToken,
   generateSecureToken,
+  generateRefreshToken,
 } from '../../utils/random/token.util';
-import {
-  newBadRequestError,
-  newConflictError,
-  newInternalServerError,
-  newNotFoundError,
-  newTooManyRequestsError,
-  newUnauthorizedError,
-} from '../../common/response/error-factory';
-import { SignUpDto } from './dto/signup.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { SignInDto } from './dto/signin.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { VerifyForgotPasswordDto } from './dto/verify-forgot-password.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import type { GoogleProfile } from '../../common/strategies/google.strategy';
-import { AuditLogService } from '../audit-log/service';
-import { AuditAction } from '../audit-log/enum';
-import loadEnv from '../../config/configuration';
+import { recoverWalletAddress } from '../../common/utils/wallet.util';
+import { ChallengeType, IdentifierType } from './model';
+import { AuditAction } from '../audit-log/model';
 
-const env = loadEnv();
+const OTP_EXPIRE_TTL_MS = 5 * 60 * 1000;
+const OTP_RESEND_LIMIT_TTL_MS = 60 * 60 * 1000;
+const MAX_EMAIL_ATTEMPTS = 5;
+const OTP_MAX_RESEND_ATTEMPTS = 5;
+const RESET_PASSWORD_TOKEN_TTL_MS = 15 * 60 * 1000;
+const METAMASK_CHALLENGE_TTL_MS = 2 * 60 * 1000;
 
-const OTP_EXPIRE_MINUTES = Number(env.OTP_EXPIRE_MINUTES ?? 5);
-const OTP_MAX_PER_HOUR = Number(env.OTP_MAX_ATTEMPTS_PER_HOUR ?? 5);
-const JWT_EXPIRES_IN = (env.JWT_EXPIRES_IN as string) ?? '15m';
-const REFRESH_EXPIRES_DAYS = Number(env.JWT_REFRESH_EXPIRES_DAYS ?? 30);
-const FRONTEND_URL = (env.FRONTEND_URL as string) ?? 'http://localhost:3000';
-
-interface ResetTokenEntry {
-  userId: string;
-  expiresAt: Date;
-}
-
-/**
- * AuthService — owns all authentication business logic.
- *
- * Convention rules enforced here:
- *  - Assumes input is already validated (done in controller/DTO layer)
- *  - NO re-validation of DTOs
- *  - NO HTTP response construction (controller handles that)
- *  - NO logging (filter handles that via HttpError.internal)
- *  - Errors thrown using factory functions from error-factory.ts ONLY
- *  - Depends on repository interfaces, never on concrete classes
- */
 @Injectable()
 export class AuthService {
-  /**
-   * In-memory reset-token store (valid 10 min).
-   * Replace with Redis for multi-instance deployments.
-   */
-  private readonly resetTokenStore = new Map<string, ResetTokenEntry>();
-
   constructor(
-    @Inject(USER_REPOSITORY)
-    private readonly userRepo: IUserRepository,
-
-    @Inject(AUTH_CHALLENGE_REPOSITORY)
-    private readonly challengeRepo: IAuthChallengeRepository,
-
-    @Inject(SESSION_REPOSITORY)
-    private readonly sessionRepo: ISessionRepository,
-
+    private readonly userRepo: UserRepository,
+    private readonly authRepo: AuthRepository,
+    private readonly sessionRepo: SessionRepository,
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService,
-    private readonly auditLogService: AuditLogService,
+    private readonly auditRepo: AuditLogRepository,
+    @Inject(MailService) private readonly mailService: MailService,
   ) {}
 
-  // ── 5.1 Sign Up ────────────────────────────────────────────────────────────
-
-  async signUp(
-    dto: SignUpDto,
-    ip: string,
-  ): Promise<{ message: string; expiresIn: number }> {
-    const existing = await this.userRepo.findByEmail(dto.email);
-    if (existing) {
-      throw newConflictError('Email is already registered');
+  async signIn(
+    email: string,
+    password: string,
+    ipAddress: string,
+    deviceInfo?: string,
+  ) {
+    const currentUser = await this.userRepo.findByEmail(email);
+    if (!currentUser) {
+      throw new UnauthorizedException('Invalid email or password!');
     }
 
-    const count = await this.challengeRepo.countByIdentifierLastHour(
-      dto.email,
-      'signup',
-    );
-    if (count >= OTP_MAX_PER_HOUR) {
-      throw newTooManyRequestsError(
-        'Too many OTP requests. Please try again in 1 hour',
-      );
+    const isMatch = await compareBcrypt(password, currentUser.password!);
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid email or password!');
     }
 
-    try {
-      const otp = generateOTP();
-      const hashedOtp = await hashBcrypt(otp);
-      const hashedPassword = await hashBcrypt(dto.password);
-      const expiredAt = new Date(Date.now() + OTP_EXPIRE_MINUTES * 60 * 1000);
-
-      await this.challengeRepo.create({
-        challengeType: 'signup',
-        identifier: dto.email,
-        tempPassword: hashedPassword,
-        challenge: hashedOtp,
-        expiredAt,
-      });
-
-      await this.mailService.sendSignUpEmail([dto.email], {
-        verificationCode: otp,
-      });
-
-      await this.auditLogService.logAuthAction({
-        action: AuditAction.SIGNUP,
-        ipAddress: ip.substring(0, 50),
-        metadata: {
-          email: dto.email,
-        },
-      });
-    } catch (err) {
-      throw newInternalServerError(err);
+    if (!currentUser.isActiveUser()) {
+      throw new BadRequestException('User is inactive.');
     }
+
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = md5(refreshToken);
+    const now = new Date();
+    const sessionTtlMs = 24 * 60 * 60 * 1000;
+    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
+
+    const newSession = await this.sessionRepo.create({
+      userId: currentUser.id,
+      refreshTokenHash,
+      ipAddress,
+      deviceInfo: deviceInfo ?? null,
+      expiredAt: new Date(now.getTime() + sessionTtlMs),
+      refreshedExpiredAt: new Date(now.getTime() + refreshTokenTtlMs),
+    });
+
+    const accessToken = this.createAccessToken(currentUser.id, newSession.id);
+
+    await this.auditRepo.create({
+      userId: currentUser.id,
+      action: AuditAction.LOGIN,
+      resourceType: 'SESSION',
+      resourceId: newSession.id,
+      ipAddress,
+    });
 
     return {
-      message: 'OTP sent to your email',
-      expiresIn: OTP_EXPIRE_MINUTES * 60,
+      accessToken,
+      refreshToken,
+      sessionId: newSession.id,
+      user: currentUser,
     };
   }
 
-  // ── 5.2 Verify OTP → Create User ───────────────────────────────────────────
+  async signUp(email: string, password: string): Promise<string> {
+    await this.checkUserNotExists(email);
+    await this.validateEmailAttempts(email, ChallengeType.SIGNUP);
 
-  async verifyOtp(dto: VerifyOtpDto): Promise<{ verifyToken: string }> {
-    const challenge =
-      await this.challengeRepo.findLatestPendingWithTempPassword(
-        dto.email,
-        'signup',
-      );
-    if (!challenge) {
-      throw newNotFoundError('Challenge not found or expired');
-    }
+    const otpCode = generateOTP();
 
-    if (challenge.attempts >= 5) {
-      throw newTooManyRequestsError(
-        'Too many failed attempts. Please request a new OTP',
-      );
-    }
+    await this.mailService.sendOtpEmail(email, otpCode);
 
-    const isValid = await compareBcrypt(dto.otp, challenge.challenge);
-    if (!isValid) {
-      await this.challengeRepo.incrementAttempts(challenge.id);
-      throw newBadRequestError('Invalid OTP');
-    }
+    const hashedOTP = await hashBcrypt(otpCode);
+    const hashedPassword = await hashBcrypt(password);
 
-    await this.challengeRepo.markVerified(challenge.id);
+    const authToken = generateSecureToken(32);
+    const authTokenHash = md5(authToken);
+    const now = new Date();
 
-    await this.userRepo.create({
-      email: dto.email,
-      password: challenge.tempPassword,
-      isVerified: true,
+    await this.authRepo.upsert({
+      challengeType: ChallengeType.SIGNUP,
+      identifierType: IdentifierType.EMAIL,
+      identifier: email,
+      tempPassword: hashedPassword,
+      challenge: hashedOTP,
+      expiredAt: new Date(now.getTime() + OTP_EXPIRE_TTL_MS),
+      attempts: 0,
+      authToken: authTokenHash,
     });
 
-    const createdUser = await this.userRepo.findByEmail(dto.email);
-    await this.auditLogService.logAuthAction({
-      userId: createdUser?.id ?? null,
-      action: AuditAction.VERIFY_OTP,
-      metadata: {
-        email: dto.email,
-      },
-    });
-
-    // Return a short-lived verify token — NEVER expose challenge.id
-    const verifyToken = generateSecureToken(16);
-    return { verifyToken };
+    return authToken;
   }
 
-  // ── 5.3 Sign In ────────────────────────────────────────────────────────────
-
-  async signIn(
-    dto: SignInDto,
-    ip: string,
-    deviceInfo: string | null,
-  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
-    const user = await this.userRepo.findByEmailWithPassword(dto.email);
-    if (!user) {
-      throw newBadRequestError('Invalid email or password');
-    }
-
-    const isPasswordValid = await compareBcrypt(dto.password, user.password);
-    if (!isPasswordValid) {
-      throw newBadRequestError('Invalid email or password');
-    }
-
-    const rawRefreshToken = generateRefreshToken();
-    const md5Hash = md5(rawRefreshToken);
+  async verifyOTP(
+    token: string,
+    otpCode: string,
+    ipAddress: string,
+    deviceInfo?: string,
+  ) {
     const now = new Date();
-    const expiredAt = new Date(
-      now.getTime() + REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000,
-    );
+    const authChallenge = await this.getValidAuthChallenge(token, now);
+
+    const isOtpValid = await compareBcrypt(otpCode, authChallenge.challenge);
+    if (!isOtpValid) {
+      authChallenge.attempts += 1;
+      await this.authRepo.upsert(authChallenge);
+      throw new BadRequestException('Invalid or expired OTP code!');
+    }
+
+    await this.checkUserNotExists(authChallenge.identifier);
+
+    const currentUser = await this.userRepo.create({
+      email: authChallenge.identifier,
+      password: authChallenge.tempPassword,
+    });
+
+    authChallenge.verifiedAt = now;
+    await this.authRepo.upsert(authChallenge);
+
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = md5(refreshToken);
+    const now2 = new Date();
+    const sessionTtlMs = 24 * 60 * 60 * 1000;
+    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
 
     const session = await this.sessionRepo.create({
-      userId: user.id,
-      refreshToken: md5Hash,
-      ipAddress: ip.substring(0, 50),
-      deviceInfo,
-      expiredAt,
-      refreshedExpiredAt: expiredAt,
+      userId: currentUser.id,
+      refreshTokenHash,
+      ipAddress,
+      deviceInfo: deviceInfo ?? null,
+      expiredAt: new Date(now2.getTime() + sessionTtlMs),
+      refreshedExpiredAt: new Date(now2.getTime() + refreshTokenTtlMs),
     });
 
-    const accessToken = this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
+    const accessToken = this.createAccessToken(currentUser.id, session.id);
+
+    authChallenge.isUsed = true;
+    await this.authRepo.upsert(authChallenge);
+
+    return {
+      accessToken,
+      refreshToken,
       sessionId: session.id,
-    });
-
-    await this.auditLogService.logAuthAction({
-      userId: user.id,
-      action: AuditAction.SIGNIN,
-      ipAddress: ip.substring(0, 50),
-      metadata: {
-        email: user.email,
-        sessionId: session.id,
-      },
-    });
-
-    return { accessToken, refreshToken: rawRefreshToken, expiresIn: 900 };
+      user: currentUser,
+    };
   }
 
-  // ── 5.4 Refresh Token ──────────────────────────────────────────────────────
+  async resendOtp(token: string): Promise<void> {
+    const authChallenge = await this.authRepo.getByAuthToken(token);
+    if (!authChallenge) {
+      throw new BadRequestException('Invalid session to resend OTP!');
+    }
 
-  async refreshToken(dto: RefreshTokenDto): Promise<{ accessToken: string }> {
-    const md5Hash = md5(dto.refreshToken);
-    const session = await this.sessionRepo.findByRefreshToken(md5Hash);
-    if (!session) {
-      throw newUnauthorizedError(
-        new Error('Refresh token not found or revoked'),
+    if (authChallenge.verifiedAt) {
+      throw new BadRequestException(
+        'User already verified, please sign in instead.',
       );
     }
 
-    if (session.expiredAt < new Date()) {
-      throw newUnauthorizedError(new Error('Session has absolutely expired'));
-    }
+    const now = new Date();
+    this.validateAttempts(authChallenge, now);
 
-    const user = await this.userRepo.findById(session.userId);
-    if (!user) {
-      throw newUnauthorizedError(new Error('User not found for session'));
-    }
+    const otpCode = generateOTP();
+    this.mailService
+      .sendOtpEmail(authChallenge.identifier, otpCode)
+      .catch(console.error);
 
-    const accessToken = this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
-      sessionId: session.id,
-    });
+    const hashedOTP = await hashBcrypt(otpCode);
 
-    await this.sessionRepo.updateLastUsed(session.id);
+    authChallenge.attempts += 1;
+    authChallenge.expiredAt = new Date(now.getTime() + OTP_EXPIRE_TTL_MS);
+    authChallenge.challenge = hashedOTP;
 
-    await this.auditLogService.logAuthAction({
-      userId: user.id,
-      action: AuditAction.REFRESH_TOKEN,
-      metadata: {
-        sessionId: session.id,
-      },
-    });
-
-    return { accessToken };
+    await this.authRepo.upsert(authChallenge);
   }
 
-  // ── 5.5 Logout ─────────────────────────────────────────────────────────────
+  async forgotPassword(email: string): Promise<string> {
+    const authToken = generateSecureToken(16);
 
-  async logout(sessionId: string): Promise<{ message: string }> {
-    await this.sessionRepo.revoke(sessionId);
+    const currentUser = await this.userRepo.findByEmail(email);
+    if (!currentUser) {
+      return authToken;
+    }
 
-    const session = await this.sessionRepo.findById(sessionId);
-    await this.auditLogService.logAuthAction({
-      userId: session?.userId ?? null,
-      action: AuditAction.LOGOUT,
-      metadata: {
-        sessionId,
-      },
+    if (!currentUser.isActiveUser()) {
+      throw new BadRequestException('User is inactive!');
+    }
+
+    await this.validateEmailAttempts(email, ChallengeType.FORGOT_PASSWORD);
+
+    const otpCode = generateOTP();
+    console.log(`[EMAIL] Send Forgot Password OTP to ${email}: ${otpCode}`);
+
+    await this.mailService.sendForgotPasswordEmail(email, otpCode);
+
+    const hashedOTP = await hashBcrypt(otpCode);
+    const authTokenHash = md5(authToken);
+    const now = new Date();
+
+    await this.authRepo.upsert({
+      challengeType: ChallengeType.FORGOT_PASSWORD,
+      identifierType: IdentifierType.EMAIL,
+      identifier: email,
+      tempPassword: null,
+      challenge: hashedOTP,
+      expiredAt: new Date(now.getTime() + OTP_EXPIRE_TTL_MS),
+      attempts: 0,
+      authToken: authTokenHash,
     });
-    return { message: 'Logged out successfully' };
+
+    return authToken;
   }
 
-  // ── 5.7 Forgot Password (anti-enumeration) ─────────────────────────────────
+  async verifyForgotPasswordOtp(
+    authToken: string,
+    otp: string,
+  ): Promise<string> {
+    const now = new Date();
+    const authChallenge = await this.getValidAuthChallenge(authToken, now);
 
-  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
-    /**
-     * Anti-enumeration: always return the same response regardless of
-     * whether the email exists. This prevents user account discovery.
-     */
-    const SAFE_RESPONSE = {
-      message: 'If your email is registered, you will receive an OTP',
-    };
+    const isOtpValid = await compareBcrypt(otp, authChallenge.challenge);
+    if (!isOtpValid) {
+      throw new BadRequestException('Invalid or expired OTP code!');
+    }
 
-    const user = await this.userRepo.findByEmail(dto.email);
-    if (!user) return SAFE_RESPONSE;
+    authChallenge.verifiedAt = now;
 
-    const count = await this.challengeRepo.countByIdentifierLastHour(
-      dto.email,
-      'forgot_password',
+    const resetPwdToken = generateSecureToken();
+    const resetPwdTokenHash = md5(resetPwdToken);
+
+    await this.authRepo.createPasswordReset({
+      identifier: authChallenge.identifier,
+      expiredAt: new Date(now.getTime() + RESET_PASSWORD_TOKEN_TTL_MS),
+      resetToken: resetPwdTokenHash,
+    });
+
+    return resetPwdToken;
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string,
+    ipAddress: string,
+    deviceInfo?: string,
+  ) {
+    const passwordReset = await this.getValidPasswordReset(token);
+
+    const currentUser = await this.userRepo.findByEmail(
+      passwordReset.identifier,
     );
-    if (count >= OTP_MAX_PER_HOUR) return SAFE_RESPONSE;
+    if (!currentUser) {
+      throw new BadRequestException('User not found!');
+    }
+
+    const isSame = await compareBcrypt(newPassword, currentUser.password!);
+    if (isSame) {
+      throw new BadRequestException(
+        'New password must be different from the old password!',
+      );
+    }
+
+    currentUser.password = await hashBcrypt(newPassword);
+    await this.userRepo.update(currentUser);
+
+    await this.sessionRepo.revokeAllByUserId(currentUser.id);
+
+    const now = new Date();
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = md5(refreshToken);
+    const sessionTtlMs = 24 * 60 * 60 * 1000;
+    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
+
+    const newSession = await this.sessionRepo.create({
+      userId: currentUser.id,
+      refreshTokenHash,
+      ipAddress,
+      deviceInfo: deviceInfo ?? null,
+      expiredAt: new Date(now.getTime() + sessionTtlMs),
+      refreshedExpiredAt: new Date(now.getTime() + refreshTokenTtlMs),
+    });
+
+    const accessToken = this.createAccessToken(currentUser.id, newSession.id);
+
+    await this.auditRepo.create({
+      userId: currentUser.id,
+      action: AuditAction.RESET_PASSWORD,
+      resourceType: 'USER',
+      resourceId: currentUser.id,
+      ipAddress,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      sessionId: newSession.id,
+      user: currentUser,
+    };
+  }
+
+  async changePassword(
+    userId: string,
+    sessionId: string,
+    oldPassword: string,
+    newPassword: string,
+    ipAddress: string,
+  ): Promise<void> {
+    const currentUser = await this.userRepo.findById(userId);
+    if (!currentUser) throw new BadRequestException('User not found!');
+
+    const isOldCorrect = await compareBcrypt(
+      oldPassword,
+      currentUser.password!,
+    );
+    if (!isOldCorrect) {
+      throw new BadRequestException('Current password is incorrect!');
+    }
+
+    const isSame = await compareBcrypt(newPassword, currentUser.password!);
+    if (isSame) {
+      throw new BadRequestException(
+        'New password must be different from the old password!',
+      );
+    }
+
+    currentUser.password = await hashBcrypt(newPassword);
+    await this.userRepo.update(currentUser);
+
+    await this.sessionRepo.revokeAllByUserId(currentUser.id, [sessionId]);
+
+    await this.auditRepo.create({
+      userId: currentUser.id,
+      action: AuditAction.CHANGE_PASSWORD,
+      resourceType: 'USER',
+      resourceId: currentUser.id,
+      ipAddress,
+    });
+  }
+
+  async metaMaskChallenge(walletAddress: string) {
+    const existUser = await this.userRepo.findByWalletAddress(walletAddress);
+    if (!existUser) {
+      throw new BadRequestException(
+        'Wallet is not linked to any active account!',
+      );
+    }
+
+    const nonce = generateSecureToken(16);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + METAMASK_CHALLENGE_TTL_MS);
+
+    await this.authRepo.upsert({
+      challengeType: ChallengeType.WALLET_SIGNIN,
+      identifierType: IdentifierType.WALLET,
+      identifier: walletAddress,
+      tempPassword: null,
+      challenge: nonce,
+      expiredAt: expiresAt,
+      attempts: 0,
+      authToken: '',
+    });
+
+    const message = this.buildMetaMaskMessage(walletAddress, nonce, false);
+
+    return { message, expiresAt: expiresAt.toISOString() };
+  }
+
+  async metaMaskSignIn(
+    walletAddress: string,
+    message: string,
+    signature: string,
+    ipAddress: string,
+    deviceInfo?: string,
+  ) {
+    const now = new Date();
+    const parsed = this.parseMetaMaskMessage(message);
+
+    const authChallenge = await this.authRepo.getByIdentifier(
+      parsed.walletAddress,
+    );
+    if (!authChallenge) {
+      throw new UnauthorizedException('Invalid meta mask challenge!');
+    }
+
+    if (
+      parsed.walletAddress.toLowerCase() !==
+      authChallenge.identifier.toLowerCase()
+    ) {
+      throw new UnauthorizedException('Invalid meta mask challenge!');
+    }
+
+    if (now > authChallenge.expiredAt) {
+      throw new UnauthorizedException('Meta mask challenge expired!');
+    }
+
+    const recoveredAddress = recoverWalletAddress(message, signature);
+    if (recoveredAddress.toLowerCase() !== parsed.walletAddress.toLowerCase()) {
+      throw new UnauthorizedException('Invalid meta mask signature!');
+    }
+
+    const currentUser = await this.createOrGetWalletUser(
+      authChallenge.identifier,
+    );
+
+    authChallenge.verifiedAt = now;
+    await this.authRepo.upsert(authChallenge);
+
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = md5(refreshToken);
+    const now2 = new Date();
+    const sessionTtlMs = 24 * 60 * 60 * 1000;
+    const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000;
+
+    const newSession = await this.sessionRepo.create({
+      userId: currentUser.id,
+      refreshTokenHash,
+      ipAddress,
+      deviceInfo: deviceInfo ?? null,
+      expiredAt: new Date(now2.getTime() + sessionTtlMs),
+      refreshedExpiredAt: new Date(now2.getTime() + refreshTokenTtlMs),
+    });
+
+    const accessToken = this.createAccessToken(currentUser.id, newSession.id);
+
+    await this.auditRepo.create({
+      userId: currentUser.id,
+      action: AuditAction.LOGIN,
+      resourceType: 'USER',
+      resourceId: currentUser.id,
+      ipAddress,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      sessionId: newSession.id,
+      user: currentUser,
+    };
+  }
+
+  async linkWallet(userId: string, walletAddress: string) {
+    const currentUser = await this.userRepo.findById(userId);
+    if (!currentUser) throw new BadRequestException('User not found!');
+
+    if (currentUser.walletAddress) {
+      throw new BadRequestException('Wallet already linked!');
+    }
+
+    const existWalletUser =
+      await this.userRepo.findByWalletAddress(walletAddress);
+    if (existWalletUser) {
+      throw new BadRequestException(
+        'Wallet already linked to another account!',
+      );
+    }
+
+    const nonce = generateSecureToken(16);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + METAMASK_CHALLENGE_TTL_MS);
+
+    await this.authRepo.upsert({
+      challengeType: ChallengeType.WALLET_LINK,
+      identifierType: IdentifierType.WALLET,
+      identifier: walletAddress,
+      tempPassword: null,
+      challenge: nonce,
+      expiredAt: expiresAt,
+      attempts: 0,
+      authToken: '',
+    });
+
+    const message = this.buildMetaMaskMessage(walletAddress, nonce, true);
+    return { message, expiresAt: expiresAt.toISOString() };
+  }
+
+  async verifyLinkWallet(
+    userId: string,
+    message: string,
+    signature: string,
+  ): Promise<void> {
+    const now = new Date();
+    const currentUser = await this.userRepo.findById(userId);
+    if (!currentUser) throw new BadRequestException('User not found!');
+
+    const parsed = this.parseMetaMaskMessage(message);
+    const authChallenge = await this.authRepo.getByIdentifier(
+      parsed.walletAddress,
+    );
+    if (!authChallenge) {
+      throw new UnauthorizedException('Invalid meta mask challenge!');
+    }
+
+    if (
+      parsed.walletAddress.toLowerCase() !==
+      authChallenge.identifier.toLowerCase()
+    ) {
+      throw new UnauthorizedException('Invalid meta mask challenge!');
+    }
+
+    if (now > authChallenge.expiredAt) {
+      throw new UnauthorizedException('Meta mask challenge expired!');
+    }
+
+    const recoveredAddress = recoverWalletAddress(message, signature);
+    if (recoveredAddress.toLowerCase() !== parsed.walletAddress.toLowerCase()) {
+      throw new UnauthorizedException('Invalid meta mask signature!');
+    }
+
+    currentUser.walletAddress = parsed.walletAddress;
+    await this.userRepo.update(currentUser);
+
+    authChallenge.verifiedAt = now;
+    await this.authRepo.upsert(authChallenge);
+  }
+
+  async refreshToken(rawRefreshToken: string): Promise<string> {
+    const { userId, sessionId } =
+      await this.checkUserAuthorization(rawRefreshToken);
+    return this.createAccessToken(userId, sessionId);
+  }
+
+  async logout(sessionId: string): Promise<void> {
+    const session = await this.sessionRepo.getById(sessionId);
+    if (!session) throw new BadRequestException('Invalid session!');
+
+    await this.sessionRepo.deleteById(session.id);
+
+    await this.auditRepo.create({
+      userId: session.userId,
+      action: AuditAction.LOGOUT,
+      resourceType: 'SESSION',
+      resourceId: session.id,
+      ipAddress: session.ipAddress,
+    });
+  }
+
+  async cleanUpExpiredChallenges(): Promise<void> {
+    await this.authRepo.deleteExpiredChallenges();
+    await this.authRepo.deletePasswordResetExpiredChallenges();
+  }
+
+  private createAccessToken(userId: string, sessionId: string): string {
+    return this.jwtService.sign({ sub: userId, sessionId });
+  }
+
+  private async checkUserNotExists(email: string): Promise<void> {
+    const user = await this.userRepo.findByEmail(email);
+    if (user?.isActiveUser()) {
+      throw new ConflictException('User already exists!');
+    }
+  }
+
+  private validateAttempts(authChallenge: any, now: Date): void {
+    const elapsed = now.getTime() - new Date(authChallenge.createdAt).getTime();
+
+    if (
+      authChallenge.attempts >= OTP_MAX_RESEND_ATTEMPTS &&
+      elapsed <= OTP_RESEND_LIMIT_TTL_MS
+    ) {
+      throw new HttpException(
+        'Too many OTP resend attempts, please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    if (elapsed > OTP_RESEND_LIMIT_TTL_MS) {
+      authChallenge.attempts = 0;
+    }
+  }
+
+  private async validateEmailAttempts(
+    email: string,
+    challengeType: string,
+  ): Promise<void> {
+    const count = await this.authRepo.countByIdentifierAndChallengeType(
+      email,
+      challengeType,
+    );
+    if (count >= MAX_EMAIL_ATTEMPTS) {
+      throw new HttpException(
+        'Too many OTP resend attempts, please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  private async getValidAuthChallenge(token: string, now: Date): Promise<any> {
+    const hash = md5(token);
+    const authChallenge = await this.authRepo.getByAuthToken(hash);
+
+    if (!authChallenge)
+      throw new BadRequestException('Invalid session to verify!');
+    if (authChallenge.verifiedAt)
+      throw new BadRequestException('OTP code already verified!');
+    if (authChallenge.isUsed)
+      throw new BadRequestException('OTP code already used!');
+
+    this.validateAttempts(authChallenge, now);
+
+    if (now > authChallenge.expiredAt) {
+      throw new BadRequestException('OTP code has expired!');
+    }
+
+    return authChallenge;
+  }
+
+  private async getValidPasswordReset(resetToken: string): Promise<any> {
+    const hash = md5(resetToken);
+    const passwordReset = await this.authRepo.getPasswordReset(hash);
+
+    if (!passwordReset)
+      throw new BadRequestException('Invalid session to verify!');
+    if (new Date() > passwordReset.expiredAt) {
+      throw new BadRequestException('Reset password token has expired!');
+    }
+
+    return passwordReset;
+  }
+
+  private buildMetaMaskMessage(
+    walletAddress: string,
+    nonce: string,
+    isLinking: boolean,
+  ): string {
+    const statement = isLinking
+      ? 'Click to link your wallet and accept'
+      : 'Click to sign in and accept';
+
+    return [
+      'Welcome to AIOZ!',
+      '',
+      `${statement} the AIOZ Terms of Service (https://aiozai.network/terms) and Privacy Policy (https://aiozai.network/privacy).`,
+      '',
+      'This request will not trigger a blockchain transaction or cost any gas fees.',
+      '',
+      'Your authentication status will reset after 24 hours.',
+      '',
+      'Wallet address:',
+      walletAddress,
+      '',
+      'Nonce:',
+      nonce,
+    ].join('\n');
+  }
+
+  private parseMetaMaskMessage(message: string): {
+    walletAddress: string;
+    nonce: string;
+  } {
+    const lines = message.split('\n');
+    let walletAddress = '';
+    let nonce = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes('Wallet address:') && i + 1 < lines.length) {
+        walletAddress = lines[i + 1].trim();
+      }
+      if (lines[i].includes('Nonce:') && i + 1 < lines.length) {
+        nonce = lines[i + 1].trim();
+      }
+    }
+
+    if (!walletAddress || !nonce) {
+      throw new BadRequestException('Invalid meta mask challenge!');
+    }
+
+    return { walletAddress, nonce };
+  }
+
+  private async createOrGetWalletUser(walletAddress: string): Promise<any> {
+    const existUser = await this.userRepo.findByWalletAddress(walletAddress);
+    if (existUser) {
+      if (!existUser.isActiveUser())
+        throw new BadRequestException('User is inactive!');
+      return existUser;
+    }
 
     try {
-      const otp = generateOTP();
-      const hashedOtp = await hashBcrypt(otp);
-      const expiredAt = new Date(Date.now() + OTP_EXPIRE_MINUTES * 60 * 1000);
-
-      await this.challengeRepo.create({
-        challengeType: 'forgot_password',
-        identifier: dto.email,
-        challenge: hashedOtp,
-        expiredAt,
-      });
-
-      await this.mailService.sendLoginEmail([dto.email], {
-        loginCode: otp,
-      });
-
-      await this.auditLogService.logAuthAction({
-        userId: user.id,
-        action: AuditAction.FORGOT_PASSWORD,
-        metadata: {
-          email: dto.email,
-        },
-      });
-    } catch (err) {
-      // Swallow — anti-enumeration requires same response on error
+      return await this.userRepo.create({ walletAddress });
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        return this.userRepo.findByWalletAddress(walletAddress);
+      }
+      throw err;
     }
-
-    return SAFE_RESPONSE;
   }
 
-  // ── 5.8 Verify Forgot-Password OTP ────────────────────────────────────────
+  private async checkUserAuthorization(
+    rawRefreshToken: string,
+  ): Promise<{ userId: string; sessionId: string }> {
+    const hash = md5(rawRefreshToken);
+    const session = await this.sessionRepo.getByRefreshToken(hash);
 
-  async verifyForgotPassword(
-    dto: VerifyForgotPasswordDto,
-  ): Promise<{ resetToken: string }> {
-    const challenge = await this.challengeRepo.findLatestPending(
-      dto.email,
-      'forgot_password',
-    );
-    if (!challenge) {
-      throw newNotFoundError('Challenge not found or expired');
+    if (!session) throw new UnauthorizedException('Session not found!');
+    if (session.isRevoked)
+      throw new UnauthorizedException('Session is revoked!');
+    if (new Date() > session.refreshedExpiredAt) {
+      throw new UnauthorizedException('Refresh token expired!');
     }
 
-    if (challenge.attempts >= 5) {
-      throw newTooManyRequestsError(
-        'Too many failed attempts. Please request a new OTP',
-      );
-    }
+    await this.sessionRepo.update({ id: session.id, lastUsedAt: new Date() });
 
-    const isValid = await compareBcrypt(dto.otp, challenge.challenge);
-    if (!isValid) {
-      await this.challengeRepo.incrementAttempts(challenge.id);
-      throw newBadRequestError('Invalid OTP');
-    }
-
-    await this.challengeRepo.markVerified(challenge.id);
-
-    const user = await this.userRepo.findByEmail(dto.email);
-    if (!user) {
-      throw newNotFoundError('User not found');
-    }
-
-    // Generate reset token — NEVER expose challenge.id
-    const resetToken = generateSecureToken(16);
-    this.resetTokenStore.set(resetToken, {
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    });
-
-    await this.auditLogService.logAuthAction({
-      userId: user.id,
-      action: AuditAction.VERIFY_FORGOT_OTP,
-      metadata: {
-        email: dto.email,
-      },
-    });
-
-    return { resetToken };
-  }
-
-  // ── 5.9 Change Password ────────────────────────────────────────────────────
-
-  async changePassword(dto: ChangePasswordDto): Promise<{ message: string }> {
-    const entry = this.resetTokenStore.get(dto.resetToken);
-    if (!entry || entry.expiresAt < new Date()) {
-      this.resetTokenStore.delete(dto.resetToken);
-      throw newBadRequestError('Reset token is invalid or expired');
-    }
-
-    const hashedPassword = await hashBcrypt(dto.newPassword);
-
-    await this.userRepo.updatePassword(entry.userId, hashedPassword);
-    await this.sessionRepo.revokeAllByUserId(entry.userId);
-    this.resetTokenStore.delete(dto.resetToken);
-
-    await this.auditLogService.logAuthAction({
-      userId: entry.userId,
-      action: AuditAction.CHANGE_PASSWORD,
-    });
-
-    return { message: 'Password changed successfully' };
-  }
-
-  // ── 5.6 Google OAuth Login ─────────────────────────────────────────────────
-
-  async googleLogin(
-    profile: GoogleProfile,
-    ip: string,
-  ): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    redirectUrl: string;
-  }> {
-    const user = await this.userRepo.upsertGoogleUser(profile);
-
-    const rawRefreshToken = generateRefreshToken();
-    const md5Hash = md5(rawRefreshToken);
-    const expiredAt = new Date(
-      Date.now() + REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000,
-    );
-
-    const session = await this.sessionRepo.create({
-      userId: user.id,
-      refreshToken: md5Hash,
-      ipAddress: ip.substring(0, 50),
-      deviceInfo: 'Google OAuth',
-      expiredAt,
-      refreshedExpiredAt: expiredAt,
-    });
-
-    const accessToken = this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
-      sessionId: session.id,
-    });
-
-    const redirectUrl = `${FRONTEND_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${rawRefreshToken}`;
-
-    await this.auditLogService.logAuthAction({
-      userId: user.id,
-      action: AuditAction.SIGNIN_GOOGLE,
-      ipAddress: ip.substring(0, 50),
-      metadata: {
-        email: user.email,
-        sessionId: session.id,
-      },
-    });
-
-    return { accessToken, refreshToken: rawRefreshToken, redirectUrl };
+    return { userId: session.userId, sessionId: session.id };
   }
 }

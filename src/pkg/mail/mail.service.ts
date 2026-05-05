@@ -18,13 +18,20 @@ const env = loadEnv();
 
 @Injectable()
 export class MailService {
-  private readonly resend: Resend;
+  private readonly resend: Resend | null;
   private readonly logger = new Logger(MailService.name);
   private readonly templateDir: string;
 
   constructor() {
-    this.resend = new Resend(env.RESEND_API_KEY as string);
-    this.templateDir = join(__dirname, 'templates');
+    this.resend = env.RESEND_API_KEY
+      ? new Resend(env.RESEND_API_KEY as string)
+      : null;
+    this.templateDir = join(__dirname, '../configs/');
+    this.logger.warn(
+      env.RESEND_API_KEY
+        ? 'MailService initialized with Resend'
+        : 'MailService: RESEND_API_KEY not set, emails will not be sent',
+    );
   }
 
   async sendEmail(
@@ -32,6 +39,10 @@ export class MailService {
     mailType: MailType,
     data: MailData,
   ): Promise<void> {
+    if (!this.resend) {
+      this.logger.warn('Skipping email send - RESEND_API_KEY not configured');
+      return;
+    }
     try {
       const emailTitle = this.getEmailTitle(mailType);
       const emailBody = await this.generateEmailBody(mailType, data);
@@ -150,7 +161,7 @@ export class MailService {
       // Replace template variables with data
       Object.keys(defaultData).forEach((key) => {
         const regex = new RegExp(`{{${key}}}`, 'g');
-        template = template.replace(regex, defaultData[key]);
+        template = template.replace(regex, String((defaultData as any)[key]));
       });
 
       return template;

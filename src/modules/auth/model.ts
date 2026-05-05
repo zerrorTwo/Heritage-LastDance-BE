@@ -1,72 +1,104 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 
-export type ChallengeType = 'signup' | 'forgot_password';
+export enum ChallengeType {
+  SIGNUP = 'SIGNUP',
+  FORGOT_PASSWORD = 'FORGOT_PASSWORD',
+  WALLET_SIGNIN = 'WALLET',
+  WALLET_LINK = 'WALLET_LINK',
+}
+
+export enum IdentifierType {
+  EMAIL = 'EMAIL',
+  WALLET = 'WALLET',
+}
 
 @Entity('auth_challenges')
 export class AuthChallengeModel {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', length: 20 })
+  @Column({ type: 'enum', enum: ChallengeType })
   challengeType!: ChallengeType;
 
-  @Column({ type: 'varchar', length: 255 })
-  identifier!: string; // email address
+  @Column({ type: 'enum', enum: IdentifierType })
+  identifierType!: IdentifierType;
 
-  /**
-   * bcrypt hash of the plain password (for signup flow).
-   * Excluded from default selects — must be explicitly selected.
-   */
-  @Column({ type: 'text', nullable: true, select: false })
-  tempPassword!: string;
+  @Column({ type: 'varchar' })
+  identifier!: string;
 
-  /**
-   * bcrypt hash of the OTP code.
-   * Never store plain OTP.
-   */
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'text', nullable: true })
+  tempPassword!: string | null;
+
+  @Column({ type: 'text' })
   challenge!: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamptz' })
   expiredAt!: Date;
-
-  @Column({ type: 'datetime', nullable: true })
-  verifiedAt!: Date | null;
 
   @Column({ type: 'int', default: 0 })
   attempts!: number;
 
-  @CreateDateColumn()
+  @Column({ type: 'varchar', nullable: true })
+  authToken!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  verifiedAt!: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  isUsed!: boolean;
+
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 }
 
-export interface CreateChallengeData {
+@Entity('password_resets')
+export class PasswordResetModel {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ type: 'varchar' })
+  identifier!: string;
+
+  @Column({ type: 'timestamptz' })
+  expiredAt!: Date;
+
+  @Column({ type: 'varchar' })
+  resetToken!: string;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+export interface CreateAuthChallengeData {
   challengeType: ChallengeType;
+  identifierType: IdentifierType;
   identifier: string;
-  tempPassword?: string;
+  tempPassword: string | null;
   challenge: string;
   expiredAt: Date;
+  attempts?: number;
+  authToken?: string | null;
 }
 
 export interface IAuthChallengeRepository {
-  create(data: CreateChallengeData): Promise<AuthChallengeModel>;
-  findLatestPending(
+  upsert(data: CreateAuthChallengeData): Promise<AuthChallengeModel>;
+  getByAuthToken(authToken: string): Promise<AuthChallengeModel | null>;
+  getByIdentifier(identifier: string): Promise<AuthChallengeModel | null>;
+  countByIdentifierAndChallengeType(
     identifier: string,
-    type: ChallengeType,
-  ): Promise<AuthChallengeModel | null>;
-  findLatestPendingWithTempPassword(
-    identifier: string,
-    type: ChallengeType,
-  ): Promise<AuthChallengeModel | null>;
-  countByIdentifierLastHour(
-    identifier: string,
-    type: ChallengeType,
+    challengeType: string,
   ): Promise<number>;
-  markVerified(id: string): Promise<void>;
-  incrementAttempts(id: string): Promise<void>;
+  deleteExpiredChallenges(): Promise<void>;
+  createPasswordReset(data: {
+    identifier: string;
+    expiredAt: Date;
+    resetToken: string;
+  }): Promise<PasswordResetModel>;
+  getPasswordReset(resetToken: string): Promise<PasswordResetModel | null>;
+  deletePasswordResetExpiredChallenges(): Promise<void>;
 }

@@ -1,98 +1,178 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Heritage KLTN Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS-based authentication and user management system with support for email OTP, JWT authentication, MetaMask wallet integration, and comprehensive audit logging.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Authentication**: Email/password signup and signin with OTP verification
+- **Password Management**: Forgot password with OTP, password reset, and change password
+- **MetaMask Integration**: Wallet-based authentication and wallet linking
+- **Session Management**: JWT access tokens with refresh token rotation
+- **Audit Logging**: Comprehensive audit trail for all user actions
+- **Email Service**: OTP and notification emails via Resend
+- **PostgreSQL Database**: TypeORM with entity modeling
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Prerequisites
 
-## Project setup
+- Node.js 18+ (20+ recommended for Resend)
+- PostgreSQL 15+
+- Docker & Docker Compose (for containerized deployment)
+- Resend API key (for email functionality)
 
-```bash
-$ npm install
+## Project Structure
+
+```
+├── src/
+│   ├── modules/
+│   │   ├── auth/           # Authentication module
+│   │   ├── user/          # User management
+│   │   ├── session/       # Session handling
+│   │   ├── audit-log/     # Audit logging
+│   │   └── health/        # Health checks
+│   ├── common/            # Shared utilities and strategies
+│   ├── pkg/
+│   │   └── mail/         # Email service
+│   └── config/           # Configuration loader
+├── config.yaml            # Local configuration
+├── docker-compose.yml    # Docker services
+└── Dockerfile            # Container build
 ```
 
-## Compile and run the project
+## Configuration
+
+The application uses YAML configuration files with environment variable override:
+
+### Config Files
+
+- `config.yaml` - Local development (default)
+- `dev.yaml` - Development environment
+- `staging.yaml` - Staging environment  
+- `production.yaml` - Production environment
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NODE_ENV` | Environment (docker, dev, staging, production) | - |
+| `PORT` | Application port | 3000 |
+| `DATABASE_HOST` | Database host | localhost |
+| `DATABASE_PORT` | Database port | 5432 |
+| `DATABASE_USER` | Database user | - |
+| `DATABASE_PASS` | Database password | - |
+| `DATABASE_NAME` | Database name | - |
+| `JWT_SECRET` | JWT signing secret | - |
+| `JWT_EXPIRES_IN` | JWT expiration time | 1h |
+| `RESEND_API_KEY` | Resend API key | - |
+| `RESEND_FROM` | Email sender address | - |
+
+### Quick Start
+
+1. Copy `config.example.yaml` to `config.yaml`:
+   ```bash
+   cp config.example.yaml config.yaml
+   ```
+
+2. Update `config.yaml` with your settings
+
+3. For Docker deployment, configure environment in `docker-compose.yml`
+
+## Installation
+
+### Local Development
 
 ```bash
-# development
-$ npm run start
+# Install dependencies
+npm install
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# Run in development mode
+npm run dev
 ```
 
-## Run tests
+### Docker Deployment
 
 ```bash
-# unit tests
-$ npm run test
+# Start all services
+docker-compose up -d
 
-# e2e tests
-$ npm run test:e2e
+# View logs
+docker-compose logs -f app
 
-# test coverage
-$ npm run test:cov
+# Stop services
+docker-compose down
 ```
 
-## Deployment
+## API Endpoints
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Authentication (`/auth`)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/signup` | Register new user (sends OTP) |
+| POST | `/auth/signin` | Login with email/password |
+| POST | `/auth/verify-otp` | Verify OTP and complete signup |
+| POST | `/auth/resend-otp` | Resend OTP code |
+| POST | `/auth/forgot-password` | Request password reset (sends OTP) |
+| POST | `/auth/verify-forgot-password-otp` | Verify OTP for password reset |
+| POST | `/auth/reset-password` | Reset password with token |
+| POST | `/auth/change-password` | Change password (authenticated) |
+| POST | `/auth/refresh-token` | Refresh access token |
+| POST | `/auth/logout` | Logout and revoke session |
+| POST | `/auth/metamask/challenge` | Get MetaMask challenge |
+| POST | `/auth/metamask/signin` | Signin with MetaMask |
+| POST | `/auth/metamask/link` | Link MetaMask wallet |
+| POST | `/auth/metamask/verify-link` | Verify wallet link |
+
+### Users (`/users`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/users/me` | Get current user profile |
+| PUT | `/users/me` | Update user profile |
+
+### Health (`/`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/ping` | Health check endpoint |
+
+## Database Schema
+
+- **Users**: User accounts with email/password or wallet address
+- **Sessions**: Active user sessions with refresh tokens
+- **Auth Challenges**: OTP and verification challenges
+- **Password Resets**: Password reset tokens
+- **Audit Logs**: Action audit trail
+
+## Scripts
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run build      # Compile TypeScript
+npm run start      # Run compiled application
+npm run dev        # Run with hot-reload
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Production Considerations
 
-## Resources
+1. **Security**:
+   - Set strong `JWT_SECRET`
+   - Use HTTPS in production
+   - Enable rate limiting (configured via `THROTTLE_TTL` and `THROTTLE_LIMIT`)
+   - Set `NODE_ENV=production`
 
-Check out a few resources that may come in handy when working with NestJS:
+2. **Database**:
+   - Use managed PostgreSQL (AWS RDS, GCP Cloud SQL, etc.)
+   - Enable connection pooling
+   - Set `synchronize: false` and use migrations
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+3. **Email**:
+   - Configure Resend with verified domain
+   - Update `RESEND_FROM` with valid sender
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+4. **Monitoring**:
+   - Enable audit logging
+   - Configure log aggregation
+   - Set up health check monitoring
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+ISC

@@ -1,26 +1,8 @@
-# ─── Build stage ─────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:18-alpine
 WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci
-
+COPY package.json package.json
+RUN npm ci --omit=dev || npm install
 COPY . .
 RUN npm run build
-
-# ─── Production stage ─────────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-COPY package*.json ./
-RUN npm ci --omit=dev
-
-COPY --from=builder /app/dist ./dist
-
-# Copy configs directory (YAML config files)
-COPY configs ./configs
-
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

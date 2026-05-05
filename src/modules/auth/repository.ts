@@ -1,70 +1,72 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { AuthChallengeModel, ChallengeType } from './model';
-import type { IAuthChallengeRepository, CreateChallengeData } from './model';
+import { Repository, LessThan } from 'typeorm';
+import {
+  AuthChallengeModel,
+  PasswordResetModel,
+  IAuthChallengeRepository,
+  CreateAuthChallengeData,
+} from './model';
 
-/**
- * MySQL/TypeORM implementation of IAuthChallengeRepository.
- */
 @Injectable()
-export class AuthChallengeRepository implements IAuthChallengeRepository {
+export class AuthRepository implements IAuthChallengeRepository {
   constructor(
     @InjectRepository(AuthChallengeModel)
-    private readonly repo: Repository<AuthChallengeModel>,
+    private readonly challengeRepo: Repository<AuthChallengeModel>,
+    @InjectRepository(PasswordResetModel)
+    private readonly passwordResetRepo: Repository<PasswordResetModel>,
   ) {}
 
-  async create(data: CreateChallengeData): Promise<AuthChallengeModel> {
-    const challenge = this.repo.create(data);
-    return this.repo.save(challenge);
+  async upsert(data: CreateAuthChallengeData): Promise<AuthChallengeModel> {
+    if (data.authToken) {
+      const existing = await this.challengeRepo.findOne({
+        where: { authToken: data.authToken },
+      });
+      if (existing) {
+        Object.assign(existing, data);
+        return this.challengeRepo.save(existing);
+      }
+    }
+    return this.challengeRepo.save(data);
   }
 
-  findLatestPending(
-    identifier: string,
-    type: ChallengeType,
-  ): Promise<AuthChallengeModel | null> {
-    return this.repo
-      .createQueryBuilder('ac')
-      .where('ac.identifier = :identifier', { identifier })
-      .andWhere('ac.challengeType = :type', { type })
-      .andWhere('ac.verifiedAt IS NULL')
-      .andWhere('ac.expiredAt > NOW()')
-      .orderBy('ac.createdAt', 'DESC')
-      .getOne();
+  async getByAuthToken(authToken: string): Promise<AuthChallengeModel | null> {
+    return this.challengeRepo.findOneBy({ authToken });
   }
 
-  findLatestPendingWithTempPassword(
-    identifier: string,
-    type: ChallengeType,
-  ): Promise<AuthChallengeModel | null> {
-    return this.repo
-      .createQueryBuilder('ac')
-      .addSelect('ac.tempPassword')
-      .where('ac.identifier = :identifier', { identifier })
-      .andWhere('ac.challengeType = :type', { type })
-      .andWhere('ac.verifiedAt IS NULL')
-      .andWhere('ac.expiredAt > NOW()')
-      .orderBy('ac.createdAt', 'DESC')
-      .getOne();
+  async getByIdentifier(identifier: string): Promise<AuthChallengeModel | null> {
+    return this.challengeRepo.findOne({
+      where: { identifier },
+      order: { createdAt: 'DESC' },
+    });
   }
 
-  async countByIdentifierLastHour(
+  async countByIdentifierAndChallengeType(
     identifier: string,
-    type: ChallengeType,
+    challengeType: string,
   ): Promise<number> {
-    return this.repo
-      .createQueryBuilder('ac')
-      .where('ac.identifier = :identifier', { identifier })
-      .andWhere('ac.challengeType = :type', { type })
-      .andWhere('ac.createdAt > DATE_SUB(NOW(), INTERVAL 1 HOUR)')
-      .getCount();
+    return this.challengeRepo.count({
+      where: { identifier, challengeType: challengeType as any },
+    });
   }
 
-  async markVerified(id: string): Promise<void> {
-    await this.repo.update({ id }, { verifiedAt: new Date() });
+  async deleteExpiredChallenges(): Promise<void> {
+    await this.challengeRepo.delete({ expiredAt: LessThan(new Date()) });
   }
 
-  async incrementAttempts(id: string): Promise<void> {
-    await this.repo.increment({ id }, 'attempts', 1);
+  async createPasswordReset(data: {
+    identifier: string;
+    expiredAt: Date;
+    resetToken: string;
+  }): Promise<PasswordResetModel> {
+    return this.passwordResetRepo.save(data);
+  }
+
+  async getPasswordReset(resetToken: string): Promise<PasswordResetModel | null> {
+    return this.passwordResetRepo.findOneBy({ resetToken });
+  }
+
+  async deletePasswordResetExpiredChallenges(): Promise<void> {
+    await this.passwordResetRepo.delete({ expiredAt: LessThan(new Date()) });
   }
 }

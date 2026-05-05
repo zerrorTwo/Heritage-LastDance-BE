@@ -1,0 +1,29 @@
+PORT: 3000
+
+# Database
+PORT_DB: 5432
+
+# JWT
+JWT_SECRET: "change_me_jwt_secret"
+JWT_EXPIRES_IN: "15m"
+JWT_REFRESH_EXPIRES_DAYS: 30
+
+# OTP
+OTP_EXPIRE_MINUTES: 5
+OTP_MAX_ATTEMPTS_PER_HOUR: 5
+
+# Frontend
+FRONTEND_URL: "http://localhost:3000"
+
+# Google OAuth
+GOOGLE_CLIENT_ID: ""
+GOOGLE_CLIENT_SECRET: ""
+GOOGLE_CALLBACK_URL: "http://localhost:3000/v1/api/auth/google/callback"
+
+# Throttling
+THROTTLE_TTL: 60
+THROTTLE_LIMIT: 100
+
+# Resend
+RESEND_API_KEY: ""
+RESEND_FROM: "AIOZ STREAM <no-reply@yourdomain.com>"
