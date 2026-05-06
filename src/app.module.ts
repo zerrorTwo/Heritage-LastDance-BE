@@ -12,6 +12,7 @@ import { HeritageMediaModule } from './modules/heritage_media/module';
 import { HeritageLocationModule } from './modules/heritage_location/module';
 import { HeritageTimelineModule } from './modules/heritage_timeline/module';
 import { HeritageRelationModule } from './modules/heritage_relation/module';
+import { BannerModule } from './modules/banner/module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { HeritageRelationModule } from './modules/heritage_relation/module';
     HeritageLocationModule,
     HeritageTimelineModule,
     HeritageRelationModule,
+    BannerModule,
   ],
 })
 export class AppModule {}
