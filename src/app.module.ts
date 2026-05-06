@@ -13,6 +13,10 @@ import { HeritageLocationModule } from './modules/heritage_location/module';
 import { HeritageTimelineModule } from './modules/heritage_timeline/module';
 import { HeritageRelationModule } from './modules/heritage_relation/module';
 import { BannerModule } from './modules/banner/module';
+import { ChatRoomModule } from './modules/chat-room/module';
+import { CommentModule } from './modules/comment/module';
+import { DiscussModule } from './modules/discuss/module';
+import { FavoriteModule } from './modules/favorite/module';
 
 @Module({
   imports: [
@@ -39,6 +43,10 @@ import { BannerModule } from './modules/banner/module';
     HeritageTimelineModule,
     HeritageRelationModule,
     BannerModule,
+    ChatRoomModule,
+    CommentModule,
+    DiscussModule,
+    FavoriteModule,
   ],
 })
 export class AppModule {}
