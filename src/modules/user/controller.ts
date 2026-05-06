@@ -1,20 +1,60 @@
-import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import { UserService } from './service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserProfileDto } from './dto/user-response.dto';
+import { Response, GeneralResponse } from '../../common/response';
 
+@ApiExtraModels(GeneralResponse, UserProfileDto)
 @Controller('users')
 @UseGuards(JwtAuthGuard)
+@ApiTags('Users')
+@ApiBearerAuth('access-token')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get('me')
-  async getCurrentUser(@Body() req: any) {
-    return this.userService.getUserById(req.user.userId);
+  @ApiOperation({
+    summary: 'Get current user profile',
+    description: 'Get the profile of the authenticated user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the current user profile',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(GeneralResponse) },
+        { properties: { data: { $ref: getSchemaPath(UserProfileDto) } } },
+      ],
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
+  async getCurrentUser(@Req() req: any) {
+    const user = await this.userService.getUserById(req.user.userId);
+    return Response.OK(user);
   }
 
   @Put('me')
-  async updateCurrentUser(@Body() dto: UpdateUserDto, @Body() req: any) {
-    return this.userService.updateUser(req.user.userId, dto);
+  @ApiOperation({
+    summary: 'Update current user profile',
+    description: 'Update the profile of the authenticated user',
+  })
+  @ApiBody({ type: UpdateUserDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the updated user profile',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(GeneralResponse) },
+        { properties: { data: { $ref: getSchemaPath(UserProfileDto) } } },
+      ],
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid input data' })
+  async updateCurrentUser(@Body() dto: UpdateUserDto, @Req() req: any) {
+    const user = await this.userService.updateUser(req.user.userId, dto);
+    return Response.OK(user);
   }
 }

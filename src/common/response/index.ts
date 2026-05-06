@@ -8,3 +8,4 @@ export {
   newTooManyRequestsError,
   newInternalServerError,
 } from './error-factory';
+export { Response, GeneralResponse } from './dto';
