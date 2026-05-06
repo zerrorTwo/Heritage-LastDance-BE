@@ -1,11 +1,11 @@
-# Application
+# Production Configuration
 PORT: 3000
 
 # Database
 PORT_DB: 5432
 
 # JWT
-JWT_SECRET: "change_me_jwt_secret"
+JWT_SECRET: "change_me_production_jwt_secret"
 JWT_EXPIRES_IN: "15m"
 JWT_REFRESH_EXPIRES_DAYS: 30
 
@@ -26,12 +26,12 @@ RESET_PASSWORD_TOKEN_TTL_MINUTES: 15
 METAMASK_CHALLENGE_TTL_MINUTES: 2
 
 # Frontend
-FRONTEND_URL: "http://localhost:3000"
+FRONTEND_URL: "https://your-production-domain.com"
 
 # Google OAuth
 GOOGLE_CLIENT_ID: ""
 GOOGLE_CLIENT_SECRET: ""
-GOOGLE_CALLBACK_URL: "http://localhost:3000/v1/api/auth/google/callback"
+GOOGLE_CALLBACK_URL: "https://your-production-domain.com/v1/api/auth/google/callback"
 
 # Throttling
 THROTTLE_TTL: 60

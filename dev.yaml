@@ -1,11 +1,11 @@
-# Application
+# Development Configuration
 PORT: 3000
 
 # Database
 PORT_DB: 5432
 
 # JWT
-JWT_SECRET: "change_me_jwt_secret"
+JWT_SECRET: "dev_jwt_secret"
 JWT_EXPIRES_IN: "15m"
 JWT_REFRESH_EXPIRES_DAYS: 30
 
