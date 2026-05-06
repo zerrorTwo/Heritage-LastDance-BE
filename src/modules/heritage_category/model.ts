@@ -12,6 +12,6 @@ export class Category {
   @Column({ type: 'varchar', length: 255, unique: true })
   slug!: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 }

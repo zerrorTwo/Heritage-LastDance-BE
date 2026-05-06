@@ -33,7 +33,7 @@ export class AuditLogModel {
   @Column({ type: 'uuid', nullable: true })
   resourceId!: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 }
 

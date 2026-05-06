@@ -1,27 +1,41 @@
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import * as yaml from 'js-yaml';
 import { join } from 'path';
 
 const loadEnv = () => {
   let config: Record<string, any> = {};
 
+  // Determine NODE_ENV
+  // Default to 'dev' if running npm run dev (not set in environment)
+  const nodeEnv = process.env.NODE_ENV || 'dev';
+  process.env.NODE_ENV = nodeEnv;
+
   // Only load YAML if NODE_ENV is set and not 'docker'
-  if (process.env.NODE_ENV && process.env.NODE_ENV !== 'docker') {
+  if (nodeEnv && nodeEnv !== 'docker') {
     let YAML_CONFIG_FILENAME = 'config.yaml';
-    if (process.env.NODE_ENV === 'dev') {
+    if (nodeEnv === 'dev') {
       YAML_CONFIG_FILENAME = 'dev.yaml';
     }
-    if (process.env.NODE_ENV === 'staging') {
+    if (nodeEnv === 'staging') {
       YAML_CONFIG_FILENAME = 'staging.yaml';
     }
-    if (process.env.NODE_ENV === 'production') {
+    if (nodeEnv === 'production') {
       YAML_CONFIG_FILENAME = 'production.yaml';
     }
+
+    // Try loading from configs/ folder first, then root folder
+    const configsPath = join(__dirname, '../../configs', YAML_CONFIG_FILENAME);
+    const rootPath = join(__dirname, '../../', YAML_CONFIG_FILENAME);
+
     try {
-      const path = join(__dirname, '../../', YAML_CONFIG_FILENAME);
-      config = yaml.load(readFileSync(path, 'utf8')) as Record<string, any>;
+      let pathToLoad = rootPath;
+      if (existsSync(configsPath)) {
+        pathToLoad = configsPath;
+      }
+      config = yaml.load(readFileSync(pathToLoad, 'utf8')) as Record<string, any>;
+      console.log(`Config loaded from: ${pathToLoad}`);
     } catch (e) {
-      console.log(`YAML config not found, using environment variables`);
+      console.log(`YAML config not found at ${configsPath} or ${rootPath}, using environment variables`);
     }
   }
 
