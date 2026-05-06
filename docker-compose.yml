@@ -1,32 +1,55 @@
 version: '3.8'
+
 services:
   db:
-    image: postgres:15
+    image: postgres:15-alpine
+    container_name: heritage_db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: aioz
       POSTGRES_PASSWORD: aiozpass
       POSTGRES_DB: aioz_map
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aioz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: heritage_app
+    restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: docker
+      NODE_ENV: production
       DATABASE_HOST: db
       DATABASE_PORT: 5432
       DATABASE_USER: aioz
       DATABASE_PASS: aiozpass
       DATABASE_NAME: aioz_map
-      JWT_SECRET: devsecret
+      JWT_SECRET: production_jwt_secret_change_me
       JWT_EXPIRES_IN: 1h
-      SESSION_TTL_HOURS: 24
-      REFRESH_TOKEN_TTL_DAYS: 7
-      MAIL_HOST: smtp.example.com
-      MAIL_PORT: 587
-      MAIL_USER: noreply@example.com
-      MAIL_PASS: secret
-      MAIL_FROM: "AIOZ <noreply@example.com>"
+      FRONTEND_URL: http://localhost:3000
+      THROTTLE_TTL: 60
+      THROTTLE_LIMIT: 100
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - heritage_network
+
+volumes:
+  postgres_data:
+
+networks:
+  heritage_network:
+    driver: bridge
