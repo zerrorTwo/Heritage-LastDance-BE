@@ -22,7 +22,7 @@ export class UserModel {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 
   isActiveUser(): boolean {

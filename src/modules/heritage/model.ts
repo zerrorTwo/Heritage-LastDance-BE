@@ -34,12 +34,12 @@ export class HeritageItem {
   @Column({ type: 'text', nullable: true })
   seoDescription!: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: 'datetime' })
   updatedAt!: Date;
 
-  @Column({ type: 'tsvector', nullable: true })
+  @Column({ type: 'text', nullable: true })
   searchVector!: any;
 }

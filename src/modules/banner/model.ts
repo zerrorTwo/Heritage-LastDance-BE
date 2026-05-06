@@ -38,19 +38,19 @@ export class BannerModel {
   @Column({ type: 'int', default: 0 })
   priority!: number;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   startAt!: Date | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   endAt!: Date | null;
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: 'datetime' })
   updatedAt!: Date;
 }
 
