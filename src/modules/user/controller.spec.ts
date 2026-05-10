@@ -1,0 +1,77 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { UserController } from './controller';
+import { UserService } from './service';
+
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  password: 'hashedPassword',
+  walletAddress: null,
+  isActive: true,
+  createdAt: new Date('2024-01-01'),
+  isActiveUser: () => true,
+};
+
+describe('UserController', () => {
+  let controller: UserController;
+  let userService: UserService;
+
+  const mockUserService = {
+    getUserById: jest.fn(),
+    updateUser: jest.fn(),
+  };
+
+  const mockRequest = {
+    user: {
+      userId: 'user-1',
+      sessionId: 'session-1',
+    },
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [UserController],
+      providers: [{ provide: UserService, useValue: mockUserService }],
+    }).compile();
+
+    controller = module.get<UserController>(UserController);
+    userService = module.get<UserService>(UserService);
+  });
+
+  describe('getCurrentUser', () => {
+    it('should call userService.getUserById and return OK response', async () => {
+      mockUserService.getUserById.mockResolvedValue(mockUser);
+
+      const result = await controller.getCurrentUser(mockRequest);
+
+      expect(userService.getUserById).toHaveBeenCalledWith(mockRequest.user.userId);
+      expect(result).toEqual({ data: mockUser });
+    });
+  });
+
+  describe('updateCurrentUser', () => {
+    it('should call userService.updateUser with dto and return OK response', async () => {
+      const dto = { email: 'updated@example.com' };
+      const updatedUser = { ...mockUser, email: 'updated@example.com' };
+      mockUserService.updateUser.mockResolvedValue(updatedUser);
+
+      const result = await controller.updateCurrentUser(dto, mockRequest);
+
+      expect(userService.updateUser).toHaveBeenCalledWith(mockRequest.user.userId, dto);
+      expect(result).toEqual({ data: updatedUser });
+    });
+
+    it('should call userService.updateUser with walletAddress', async () => {
+      const dto = { walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38' };
+      const updatedUser = { ...mockUser, walletAddress: dto.walletAddress };
+      mockUserService.updateUser.mockResolvedValue(updatedUser);
+
+      const result = await controller.updateCurrentUser(dto, mockRequest);
+
+      expect(userService.updateUser).toHaveBeenCalledWith(mockRequest.user.userId, dto);
+      expect(result).toEqual({ data: updatedUser });
+    });
+  });
+});

@@ -187,9 +187,6 @@ export class AuthService {
 
     const accessToken = this.createAccessToken(currentUser.id, session.id);
 
-    authChallenge.isUsed = true;
-    await this.authRepo.upsert(authChallenge);
-
     return {
       accessToken,
       refreshToken,
