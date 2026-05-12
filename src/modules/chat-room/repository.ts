@@ -196,7 +196,7 @@ export class MessageRepository {
     return this.repo.findOne({ where: { id } });
   }
 
-  async findByChatRoomId(chatRoomId: string, limit = 2): Promise<MessageModel[]> {
+  async findByChatRoomId(chatRoomId: string, limit = 50): Promise<MessageModel[]> {
     return this.repo.find({
       where: { chatRoomId },
       order: { createdAt: 'ASC' },

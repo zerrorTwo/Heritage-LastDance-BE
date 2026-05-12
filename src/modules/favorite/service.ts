@@ -15,7 +15,6 @@ export class FavoriteService {
     private readonly heritageRepo: HeritageRepository,
   ) {}
 
-  /** Lấy tất cả favorite với phân trang (admin) */
   async getAll(query: {
     page?: number;
     limit?: number;
@@ -39,14 +38,12 @@ export class FavoriteService {
     };
   }
 
-  /** Lấy favorite theo ID */
   async getFavoriteById(id: string) {
     const fav = await this.favoriteRepo.findById(id);
     if (!fav) throw new NotFoundException('Favorite not found');
     return { ...fav, items: this.favoriteRepo.parseItems(fav.items) };
   }
 
-  /** Lấy danh sách favorite của user với phân trang + thông tin heritage */
   async getByUserId(userId: string, queryDto: FavoriteQueryDto) {
     const page = Number(queryDto.page) || 1;
     const limit = Number(queryDto.limit) || 10;
@@ -65,18 +62,25 @@ export class FavoriteService {
     const skip = (page - 1) * limit;
     const paginatedItems = allItems.slice(skip, skip + limit);
 
-    // Lấy thông tin heritage cho từng item
-    const heritageDetails = await Promise.all(
-      paginatedItems.map(async (item) => {
-        try {
-          const heritage = await this.heritageRepo.findById(item.heritageId);
-          return heritage
-            ? { id: heritage.id, title: heritage.title, slug: heritage.slug, status: heritage.status }
-            : null;
-        } catch {
-          return null;
-        }
-      }),
+    const heritageIds = paginatedItems
+      .map((item) => item.heritageId)
+      .filter(Boolean);
+
+    const heritageMap = new Map<string, { id: string; title: string; slug: string; status: string }>();
+    if (heritageIds.length > 0) {
+      const heritages = await this.heritageRepo.findByIds(heritageIds);
+      for (const h of heritages) {
+        heritageMap.set(h.id, {
+          id: h.id,
+          title: h.title,
+          slug: h.slug,
+          status: h.status,
+        });
+      }
+    }
+
+    const heritageDetails = paginatedItems.map((item) =>
+      heritageMap.get(item.heritageId) || null,
     );
 
     return {
@@ -85,16 +89,13 @@ export class FavoriteService {
     };
   }
 
-  /** Thêm heritage vào favorite */
   async addToFavorites(userId: string, heritageId: string) {
-    // Kiểm tra heritage tồn tại
     const heritage = await this.heritageRepo.findById(heritageId);
     if (!heritage) throw new NotFoundException('Heritage not found');
 
     const existingFav = await this.favoriteRepo.findByUserId(userId);
 
     if (!existingFav) {
-      // Tạo mới favorite list
       const newFav = await this.favoriteRepo.create(userId, [
         { heritageId, addedAt: new Date() },
       ]);
@@ -103,13 +104,11 @@ export class FavoriteService {
 
     const currentItems: FavoriteItem[] = this.favoriteRepo.parseItems(existingFav.items);
 
-    // Kiểm tra duplicate
     const isDuplicate = currentItems.some((item) => item.heritageId === heritageId);
     if (isDuplicate) {
       throw new BadRequestException('Heritage already exists in favorites');
     }
 
-    // Thêm vào danh sách
     const updatedItems: FavoriteItem[] = [
       ...currentItems,
       { heritageId, addedAt: new Date() },
@@ -119,9 +118,7 @@ export class FavoriteService {
     return { ...updated, items: this.favoriteRepo.parseItems(updated!.items) };
   }
 
-  /** Xóa heritage khỏi favorite */
   async deleteByHeritageId(userId: string, heritageId: string) {
-    // Kiểm tra heritage tồn tại
     const heritage = await this.heritageRepo.findById(heritageId);
     if (!heritage) throw new NotFoundException('Heritage not found');
 
@@ -132,7 +129,6 @@ export class FavoriteService {
     const updatedItems = currentItems.filter((item) => item.heritageId !== heritageId);
 
     if (updatedItems.length === 0) {
-      // Xóa toàn bộ favorite document nếu không còn item nào
       await this.favoriteRepo.delete(fav.id);
     } else {
       await this.favoriteRepo.update(fav.id, updatedItems);

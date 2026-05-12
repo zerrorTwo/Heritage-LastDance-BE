@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { redisStore } from 'cache-manager-redis-yet';
+import type { CacheModuleOptions } from '@nestjs/cache-manager';
 import { AuthModule } from './modules/auth/module';
 import { UserModule } from './modules/user/module';
 import { SessionModule } from './modules/session/module';
@@ -17,19 +22,54 @@ import { ChatRoomModule } from './modules/chat-room/module';
 import { CommentModule } from './modules/comment/module';
 import { DiscussModule } from './modules/discuss/module';
 import { FavoriteModule } from './modules/favorite/module';
+import { ChatGatewayModule } from './gateways/chat-gateway.module';
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot({
-      type: 'mysql',
+      type: 'postgres',
       host: process.env.DATABASE_HOST || 'localhost',
       port: parseInt(process.env.DATABASE_PORT || '5432'),
       username: process.env.DATABASE_USER || 'aioz',
       password: process.env.DATABASE_PASS || 'aiozpass',
       database: process.env.DATABASE_NAME || 'aioz_map',
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: !isProduction,
+      ...(isProduction && {
+        extra: {
+          max: 20,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 5000,
+        },
+        logging: ['error', 'warn'],
+      }),
     }),
+
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: async (): Promise<CacheModuleOptions> => {
+        const redisUrl = process.env.REDIS_URL;
+        if (redisUrl) {
+          const store = await redisStore({
+            url: redisUrl,
+            ttl: 60000,
+          });
+          return { store, ttl: 60 * 1000 };
+        }
+        return {
+          ttl: 60 * 1000,
+          max: 500,
+        };
+      },
+    }),
+
+    ThrottlerModule.forRoot({
+      ttl: parseInt(process.env.THROTTLE_TTL || '60') * 1000,
+      limit: parseInt(process.env.THROTTLE_LIMIT || '60'),
+    }),
+
     AuthModule,
     UserModule,
     SessionModule,
@@ -47,6 +87,13 @@ import { FavoriteModule } from './modules/favorite/module';
     CommentModule,
     DiscussModule,
     FavoriteModule,
+    ChatGatewayModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

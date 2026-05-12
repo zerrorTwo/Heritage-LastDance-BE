@@ -81,4 +81,9 @@ export class SaveMessageDto {
   @IsEnum(MessageType)
   @IsOptional()
   type?: MessageType;
+
+  @ApiProperty({ description: 'Tên hiển thị người gửi', required: false })
+  @IsString()
+  @IsOptional()
+  username?: string;
 }

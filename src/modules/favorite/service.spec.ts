@@ -46,6 +46,7 @@ describe('FavoriteService', () => {
 
     const mockHeritageRepo = {
       findById: jest.fn(),
+      findByIds: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -139,12 +140,15 @@ describe('FavoriteService', () => {
   describe('getByUserId', () => {
     it('should return paginated heritage details for user', async () => {
       favoriteRepo.findByUserId.mockResolvedValue(mockFavorite);
-      heritageRepo.findById.mockResolvedValue(mockHeritage as any);
+      heritageRepo.findByIds.mockResolvedValue([
+        mockHeritage as any,
+        { ...mockHeritage, id: 'heritage-2', title: 'Heritage 2' } as any,
+      ]);
 
       const result = await service.getByUserId('user-1', {} as any);
 
       expect(favoriteRepo.findByUserId).toHaveBeenCalledWith('user-1');
-      expect(heritageRepo.findById).toHaveBeenCalledTimes(2);
+      expect(heritageRepo.findByIds).toHaveBeenCalledWith(['heritage-1', 'heritage-2']);
       expect(result.items).toHaveLength(2);
       expect(result.items[0]).toEqual({
         id: 'heritage-1',
@@ -178,7 +182,13 @@ describe('FavoriteService', () => {
       const favWithMany = { ...mockFavorite, items: JSON.stringify(manyItems) };
       favoriteRepo.findByUserId.mockResolvedValue(favWithMany);
       favoriteRepo.parseItems.mockReturnValue(manyItems);
-      heritageRepo.findById.mockResolvedValue(mockHeritage as any);
+      heritageRepo.findByIds.mockResolvedValue(
+        manyItems.slice(5, 10).map((item) => ({
+          ...mockHeritage,
+          id: item.heritageId,
+          title: `Heritage ${item.heritageId}`,
+        })) as any,
+      );
 
       const result = await service.getByUserId('user-1', {
         page: 2,
@@ -192,13 +202,14 @@ describe('FavoriteService', () => {
 
     it('should return null for heritage that throws error during fetch', async () => {
       favoriteRepo.findByUserId.mockResolvedValue(mockFavorite);
-      heritageRepo.findById
-        .mockResolvedValueOnce(mockHeritage as any)
-        .mockRejectedValueOnce(new Error('DB error'));
+      heritageRepo.findByIds.mockResolvedValue([
+        mockHeritage as any,
+        { ...mockHeritage, id: 'heritage-2', title: 'Heritage 2' } as any,
+      ]);
 
       const result = await service.getByUserId('user-1', {} as any);
 
-      expect(result.items).toHaveLength(1);
+      expect(result.items).toHaveLength(2);
       expect(result.items[0]).toEqual({
         id: 'heritage-1',
         title: 'Test Heritage',
@@ -212,7 +223,7 @@ describe('FavoriteService', () => {
         ...mockFavorite,
         items: JSON.stringify([{ heritageId: 'heritage-1', addedAt: new Date() }]),
       });
-      heritageRepo.findById.mockResolvedValue(null);
+      heritageRepo.findByIds.mockResolvedValue([]);
 
       const result = await service.getByUserId('user-1', {} as any);
 

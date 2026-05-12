@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { HeritageController } from './controller';
 import { HeritageService } from './service';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 const mockHeritage = {
   id: '1',
@@ -30,6 +32,7 @@ describe('HeritageController', () => {
       controllers: [HeritageController],
       providers: [
         { provide: HeritageService, useValue: mockService },
+        { provide: CACHE_MANAGER, useValue: { get: jest.fn(), set: jest.fn(), del: jest.fn() } },
       ],
     }).compile();
 
@@ -65,16 +68,32 @@ describe('HeritageController', () => {
 
       const result = await controller.getAllHeritage('active', 'cultural');
 
-      expect(service.getAllHeritage).toHaveBeenCalledWith({ status: 'active', type: 'cultural' });
+      expect(service.getAllHeritage).toHaveBeenCalledWith({
+        status: 'active',
+        type: 'cultural',
+        page: 1,
+        limit: 10,
+        name: undefined,
+        sort: undefined,
+        order: undefined,
+      });
       expect(result).toEqual([mockHeritage]);
     });
 
-    it('should call service.getAllHeritage with undefined when no query params', async () => {
+    it('should call service.getAllHeritage with default params when no query', async () => {
       mockService.getAllHeritage.mockResolvedValue([mockHeritage]);
 
       const result = await controller.getAllHeritage(undefined, undefined);
 
-      expect(service.getAllHeritage).toHaveBeenCalledWith({ status: undefined, type: undefined });
+      expect(service.getAllHeritage).toHaveBeenCalledWith({
+        status: undefined,
+        type: undefined,
+        page: 1,
+        limit: 10,
+        name: undefined,
+        sort: undefined,
+        order: undefined,
+      });
       expect(result).toEqual([mockHeritage]);
     });
   });

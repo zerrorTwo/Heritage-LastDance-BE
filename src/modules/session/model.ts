@@ -25,16 +25,16 @@ export class SessionModel {
   @Column({ type: 'boolean', default: false })
   isRevoked!: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastUsedAt!: Date | null;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   expiredAt!: Date;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   refreshedExpiredAt!: Date;
 
-  @CreateDateColumn({ type: 'datetime' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 }
 

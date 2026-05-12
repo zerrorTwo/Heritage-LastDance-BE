@@ -5,14 +5,17 @@ WORKDIR /app
 # Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including devDeps for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build the application
 RUN npm run build
+
+# Prune devDependencies to keep production image small
+RUN npm prune --production
 
 # Production stage
 FROM node:18-alpine

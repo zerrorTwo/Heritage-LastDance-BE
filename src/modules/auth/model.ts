@@ -37,7 +37,7 @@ export class AuthChallengeModel {
   @Column({ type: 'text' })
   challenge!: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   expiredAt!: Date;
 
   @Column({ type: 'int', default: 0 })
@@ -46,13 +46,13 @@ export class AuthChallengeModel {
   @Column({ type: 'varchar', nullable: true })
   authToken!: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   verifiedAt!: Date | null;
 
   @Column({ type: 'boolean', default: false })
   isUsed!: boolean;
 
-  @CreateDateColumn({ type: 'datetime' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 }
 
@@ -64,13 +64,13 @@ export class PasswordResetModel {
   @Column({ type: 'varchar' })
   identifier!: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   expiredAt!: Date;
 
   @Column({ type: 'varchar' })
   resetToken!: string;
 
-  @CreateDateColumn({ type: 'datetime' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 }
 

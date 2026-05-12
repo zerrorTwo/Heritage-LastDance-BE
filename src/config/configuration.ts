@@ -2,7 +2,11 @@ import { readFileSync, existsSync } from 'fs';
 import * as yaml from 'js-yaml';
 import { join } from 'path';
 
+let cachedConfig: Record<string, any> | null = null;
+
 const loadEnv = () => {
+  if (cachedConfig) return cachedConfig;
+
   let config: Record<string, any> = {};
 
   // Determine NODE_ENV
@@ -24,18 +28,33 @@ const loadEnv = () => {
     }
 
     // Try loading from configs/ folder first, then root folder
-    const configsPath = join(__dirname, '../../configs', YAML_CONFIG_FILENAME);
-    const rootPath = join(__dirname, '../../', YAML_CONFIG_FILENAME);
+    // Fallback to config.yaml if env-specific YAML not found
+    const candidates = [
+      YAML_CONFIG_FILENAME,
+      ...(YAML_CONFIG_FILENAME !== 'config.yaml' ? ['config.yaml'] : []),
+    ];
 
-    try {
-      let pathToLoad = rootPath;
-      if (existsSync(configsPath)) {
-        pathToLoad = configsPath;
+    let loaded = false;
+    for (const filename of candidates) {
+      const configsPath = join(__dirname, '../../configs', filename);
+      const rootPath = join(__dirname, '../../', filename);
+
+      try {
+        let pathToLoad = rootPath;
+        if (existsSync(configsPath)) {
+          pathToLoad = configsPath;
+        }
+        config = yaml.load(readFileSync(pathToLoad, 'utf8')) as Record<string, any>;
+        console.log(`Config loaded from: ${pathToLoad}`);
+        loaded = true;
+        break;
+      } catch (e) {
+        // Try next candidate
       }
-      config = yaml.load(readFileSync(pathToLoad, 'utf8')) as Record<string, any>;
-      console.log(`Config loaded from: ${pathToLoad}`);
-    } catch (e) {
-      console.log(`YAML config not found at ${configsPath} or ${rootPath}, using environment variables`);
+    }
+
+    if (!loaded) {
+      console.log(`YAML config not found at configs/ or root, using environment variables`);
     }
   }
 
@@ -53,6 +72,7 @@ const loadEnv = () => {
     }
   }
 
+  cachedConfig = config;
   return config;
 };
 export default loadEnv;
