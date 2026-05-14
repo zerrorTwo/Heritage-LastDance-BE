@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ChatRoomService } from '../modules/chat-room/service';
+import { MessageType } from '../modules/chat-room/model';
 
 interface UserData {
   userId: string;
@@ -27,7 +28,7 @@ interface UserData {
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private userSocketMap = new Map<string, string>();
 
@@ -119,7 +120,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId: heritageId,
         userId: message.userId,
         content: message.content,
-        type: 'text',
+        type: MessageType.TEXT,
         username: message.username,
       });
 
@@ -129,7 +130,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId,
       });
     } catch (err) {
-      client.emit('error', { message: err.message });
+      client.emit('error', {
+        message: err instanceof Error ? err.message : 'Unable to save message',
+      });
     }
   }
 
