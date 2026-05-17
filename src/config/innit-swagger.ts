@@ -22,7 +22,7 @@ export default function initSwagger(app: INestApplication) {
 
   const document = SwaggerModule.createDocument(app, config);
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  // const isProduction = process.env.NODE_ENV === 'production';
 
   SwaggerModule.setup('api/swagger', app, document, {
     swaggerOptions: {

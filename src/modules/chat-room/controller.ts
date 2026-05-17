@@ -1,10 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
-  Put,
   Query,
   Req,
   UseGuards,
@@ -19,10 +20,13 @@ import {
 import { ChatRoomService } from './service';
 import {
   CreateChatRoomDto,
+  FindOrCreateDirectRoomDto,
   JoinRoomDto,
   SaveMessageDto,
+  SendDirectMessageDto,
 } from './dto/chat-room.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { Response } from '../../common/response';
 
 @ApiTags('Chat Rooms')
@@ -99,6 +103,87 @@ export class ChatRoomController {
   @ApiResponse({ status: 200, description: 'Danh sách người dùng (online)' })
   async getRoomUsers(@Param('roomId') roomId: string) {
     const result = await this.chatRoomService.getRoomUsers(roomId);
+    return Response.OK(result);
+  }
+
+  // =================== Direct Message ===================
+
+  @Post('direct')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Tìm hoặc tạo phòng DM với 1 user khác' })
+  async findOrCreateDirectRoom(
+    @Body() dto: FindOrCreateDirectRoomDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const room = await this.chatRoomService.findOrCreateDirectRoom(
+      user.sub,
+      dto.otherUserId,
+      dto.username,
+    );
+    return Response.OK(room);
+  }
+
+  @Post('direct/messages')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Gửi tin nhắn DM (tự tạo room nếu chưa có)' })
+  async sendDirectMessage(
+    @Body() dto: SendDirectMessageDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const result = await this.chatRoomService.saveDirectMessage(
+      user.sub,
+      dto.otherUserId,
+      dto.content,
+      dto.type,
+      dto.username,
+    );
+    return Response.Created(result);
+  }
+
+  @Get('direct/:otherUserId/messages')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Lấy history DM với 1 user (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getDirectMessages(
+    @Param('otherUserId') otherUserId: string,
+    @CurrentUser() user: JwtPayload,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const result = await this.chatRoomService.getDirectMessages(
+      user.sub,
+      otherUserId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 20,
+    );
+    return Response.OK(result);
+  }
+
+  @Patch('messages/:msgId/read')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Đánh dấu tin nhắn đã đọc' })
+  async markRead(
+    @Param('msgId') msgId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const result = await this.chatRoomService.markMessageAsRead(msgId, user.sub);
+    return Response.OK(result);
+  }
+
+  @Delete('messages/:msgId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Xóa mềm tin nhắn (chỉ owner)' })
+  async deleteMessage(
+    @Param('msgId') msgId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const result = await this.chatRoomService.softDeleteMessage(msgId, user.sub);
     return Response.OK(result);
   }
 }

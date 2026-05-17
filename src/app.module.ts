@@ -22,6 +22,8 @@ import { ChatRoomModule } from './modules/chat-room/module';
 import { CommentModule } from './modules/comment/module';
 import { DiscussModule } from './modules/discuss/module';
 import { FavoriteModule } from './modules/favorite/module';
+import { LeaderboardModule } from './modules/leaderboard/module';
+import { KnowledgeTestModule } from './modules/knowledge-test/module';
 import { ChatGatewayModule } from './gateways/chat-gateway.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -87,6 +89,8 @@ const isProduction = process.env.NODE_ENV === 'production';
     CommentModule,
     DiscussModule,
     FavoriteModule,
+    LeaderboardModule,
+    KnowledgeTestModule,
     ChatGatewayModule,
   ],
   providers: [

@@ -161,39 +161,73 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join-dm')
-  handleJoinDM(
+  async handleJoinDM(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { userId1: string; userId2: string; userData: UserData },
+    @MessageBody() data: { userId1: string; userId2: string; userData?: UserData },
   ) {
-    const { userId1, userId2 } = data;
-    const dmRoomId = [userId1, userId2].sort().join('-');
-    client.join(dmRoomId);
-    client.emit('join-dm', { dmRoomId });
+    const { userId1, userId2, userData } = data;
+    if (!userId1 || !userId2) return;
+
+    try {
+      const room = await this.chatRoomService.findOrCreateDirectRoom(
+        userId1,
+        userId2,
+        userData?.username,
+      );
+      client.join(room.id);
+      client.emit('join-dm', { dmRoomId: room.id });
+    } catch (err) {
+      client.emit('error', { message: (err as Error).message });
+    }
   }
 
   @SubscribeMessage('send-dm')
-  handleDirectMessage(
+  async handleDirectMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    data: { dmRoomId: string; userId: string; message: string },
+    data: {
+      userId: string;
+      otherUserId: string;
+      message: { content: string; type?: string; username?: string };
+    },
   ) {
-    const { dmRoomId, userId, message } = data;
-    this.server.to(dmRoomId).emit('new-dm', {
-      userId,
-      message,
-      dmRoomId,
-      timestamp: new Date().toISOString(),
-    });
+    const { userId, otherUserId, message } = data;
+    if (!message?.content?.trim()) return;
+
+    try {
+      const { room, message: saved } = await this.chatRoomService.saveDirectMessage(
+        userId,
+        otherUserId,
+        message.content,
+        undefined,
+        message.username,
+      );
+
+      this.server.to(room.id).emit('new-dm', {
+        ...saved,
+        dmRoomId: room.id,
+        username: message.username,
+      });
+    } catch (err) {
+      client.emit('error', { message: (err as Error).message });
+    }
   }
 
   @SubscribeMessage('get-dm-messages')
-  handleGetDMMessages(
+  async handleGetDMMessages(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { dmRoomId: string; limit?: number },
+    @MessageBody()
+    data: { userId1: string; userId2: string; page?: number; limit?: number },
   ) {
-    client.emit('dm-messages', {
-      dmRoomId: data.dmRoomId,
-      messages: [],
-    });
+    const { userId1, userId2, page = 1, limit = 20 } = data;
+    if (!userId1 || !userId2) return;
+
+    const result = await this.chatRoomService.getDirectMessages(
+      userId1,
+      userId2,
+      page,
+      limit,
+    );
+    client.emit('dm-messages', result);
   }
 }
