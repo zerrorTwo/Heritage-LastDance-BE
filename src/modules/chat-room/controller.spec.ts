@@ -58,6 +58,17 @@ describe('ChatRoomController', () => {
     saveMessage: jest.fn(),
     getRoomMessages: jest.fn(),
     getRoomUsers: jest.fn(),
+    findOrCreateDirectRoom: jest.fn(),
+    saveDirectMessage: jest.fn(),
+    getDirectMessages: jest.fn(),
+    markMessageAsRead: jest.fn(),
+    softDeleteMessage: jest.fn(),
+  };
+
+  const mockJwtUser = {
+    sub: 'user-1',
+    email: 'user1@test.com',
+    sessionId: 'session-1',
   };
 
   beforeEach(async () => {
@@ -160,6 +171,225 @@ describe('ChatRoomController', () => {
 
       expect(chatRoomService.getRoomUsers).toHaveBeenCalledWith('room-1');
       expect(result).toEqual({ data: participants });
+    });
+  });
+
+  // =================== Direct Message (AAA pattern) ===================
+
+  describe('POST /direct (findOrCreateDirectRoom)', () => {
+    it('should call service.findOrCreateDirectRoom with current user sub and dto', async () => {
+      // Arrange
+      const dto: any = { otherUserId: 'user-2', username: 'Alice' };
+      const directRoom = mockRoom({ id: 'dm-1', type: 'DIRECT', heritageId: null });
+      mockChatRoomService.findOrCreateDirectRoom.mockResolvedValue(directRoom);
+
+      // Act
+      const result = await controller.findOrCreateDirectRoom(dto, mockJwtUser);
+
+      // Assert
+      expect(chatRoomService.findOrCreateDirectRoom).toHaveBeenCalledWith(
+        'user-1',
+        'user-2',
+        'Alice',
+      );
+      expect(result).toEqual({ data: directRoom });
+    });
+
+    it('should propagate BadRequestException when DM to self', async () => {
+      // Arrange
+      mockChatRoomService.findOrCreateDirectRoom.mockRejectedValue(
+        new Error('Không thể tạo DM với chính mình'),
+      );
+
+      // Act & Assert
+      await expect(
+        controller.findOrCreateDirectRoom(
+          { otherUserId: 'user-1' } as any,
+          mockJwtUser,
+        ),
+      ).rejects.toThrow('Không thể tạo DM với chính mình');
+    });
+  });
+
+  describe('POST /direct/messages (sendDirectMessage)', () => {
+    it('should call service.saveDirectMessage with all params', async () => {
+      // Arrange
+      const dto: any = {
+        otherUserId: 'user-2',
+        content: 'Hello',
+        type: 'TEXT',
+        username: 'Alice',
+      };
+      const saved = {
+        room: mockRoom({ id: 'dm-1', type: 'DIRECT' }),
+        message: mockMessage({ content: 'Hello' }),
+      };
+      mockChatRoomService.saveDirectMessage.mockResolvedValue(saved);
+
+      // Act
+      const result = await controller.sendDirectMessage(dto, mockJwtUser);
+
+      // Assert
+      expect(chatRoomService.saveDirectMessage).toHaveBeenCalledWith(
+        'user-1',
+        'user-2',
+        'Hello',
+        'TEXT',
+        'Alice',
+      );
+      expect(result).toEqual({ data: saved });
+    });
+
+    it('should propagate BadRequestException when content empty', async () => {
+      // Arrange
+      mockChatRoomService.saveDirectMessage.mockRejectedValue(
+        new Error('Nội dung tin nhắn không được để trống'),
+      );
+
+      // Act & Assert
+      await expect(
+        controller.sendDirectMessage(
+          { otherUserId: 'user-2', content: '' } as any,
+          mockJwtUser,
+        ),
+      ).rejects.toThrow('Nội dung tin nhắn không được để trống');
+    });
+  });
+
+  describe('GET /direct/:otherUserId/messages (getDirectMessages)', () => {
+    it('should call service.getDirectMessages with pagination defaults', async () => {
+      // Arrange
+      const serviceResult = { results: [mockMessage()], total: 1, page: 1, limit: 20 };
+      mockChatRoomService.getDirectMessages.mockResolvedValue(serviceResult);
+
+      // Act
+      const result = await controller.getDirectMessages('user-2', mockJwtUser);
+
+      // Assert
+      expect(chatRoomService.getDirectMessages).toHaveBeenCalledWith(
+        'user-1',
+        'user-2',
+        1,
+        20,
+      );
+      expect(result).toEqual({ data: serviceResult });
+    });
+
+    it('should parse and pass custom page + limit', async () => {
+      // Arrange
+      const serviceResult = { results: [], total: 0, page: 2, limit: 10 };
+      mockChatRoomService.getDirectMessages.mockResolvedValue(serviceResult);
+
+      // Act
+      await controller.getDirectMessages('user-2', mockJwtUser, 2, 10);
+
+      // Assert
+      expect(chatRoomService.getDirectMessages).toHaveBeenCalledWith(
+        'user-1',
+        'user-2',
+        2,
+        10,
+      );
+    });
+
+    it('should return empty result when no DM history', async () => {
+      // Arrange
+      const emptyResult = { results: [], total: 0, page: 1, limit: 20 };
+      mockChatRoomService.getDirectMessages.mockResolvedValue(emptyResult);
+
+      // Act
+      const result = await controller.getDirectMessages('user-nobody', mockJwtUser);
+
+      // Assert
+      expect(result).toEqual({ data: emptyResult });
+    });
+  });
+
+  describe('PATCH /messages/:msgId/read (markRead)', () => {
+    it('should call service.markMessageAsRead with msgId and user sub', async () => {
+      // Arrange
+      const updated = mockMessage({ status: 'READ' });
+      mockChatRoomService.markMessageAsRead.mockResolvedValue(updated);
+
+      // Act
+      const result = await controller.markRead('msg-1', mockJwtUser);
+
+      // Assert
+      expect(chatRoomService.markMessageAsRead).toHaveBeenCalledWith(
+        'msg-1',
+        'user-1',
+      );
+      expect(result).toEqual({ data: updated });
+    });
+
+    it('should propagate NotFoundException when message not found', async () => {
+      // Arrange
+      const { NotFoundException } = await import('@nestjs/common');
+      mockChatRoomService.markMessageAsRead.mockRejectedValue(
+        new NotFoundException('Tin nhắn không tồn tại'),
+      );
+
+      // Act & Assert
+      await expect(
+        controller.markRead('nonexistent', mockJwtUser),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should propagate ForbiddenException when user not in room', async () => {
+      // Arrange
+      const { ForbiddenException } = await import('@nestjs/common');
+      mockChatRoomService.markMessageAsRead.mockRejectedValue(
+        new ForbiddenException('Bạn không có trong phòng này'),
+      );
+
+      // Act & Assert
+      await expect(
+        controller.markRead('msg-1', mockJwtUser),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('DELETE /messages/:msgId (deleteMessage)', () => {
+    it('should call service.softDeleteMessage with msgId and user sub', async () => {
+      // Arrange
+      const deleted = mockMessage({ status: 'DELETED', content: 'Tin nhắn đã bị xóa' });
+      mockChatRoomService.softDeleteMessage.mockResolvedValue(deleted);
+
+      // Act
+      const result = await controller.deleteMessage('msg-1', mockJwtUser);
+
+      // Assert
+      expect(chatRoomService.softDeleteMessage).toHaveBeenCalledWith(
+        'msg-1',
+        'user-1',
+      );
+      expect(result).toEqual({ data: deleted });
+    });
+
+    it('should propagate ForbiddenException when not owner', async () => {
+      // Arrange
+      const { ForbiddenException } = await import('@nestjs/common');
+      mockChatRoomService.softDeleteMessage.mockRejectedValue(
+        new ForbiddenException('Chỉ người gửi mới được xóa tin nhắn'),
+      );
+
+      // Act & Assert
+      await expect(
+        controller.deleteMessage('msg-1', mockJwtUser),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should propagate NotFoundException', async () => {
+      // Arrange
+      const { NotFoundException } = await import('@nestjs/common');
+      mockChatRoomService.softDeleteMessage.mockRejectedValue(
+        new NotFoundException('Tin nhắn không tồn tại'),
+      );
+
+      // Act & Assert
+      await expect(
+        controller.deleteMessage('nonexistent', mockJwtUser),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });
