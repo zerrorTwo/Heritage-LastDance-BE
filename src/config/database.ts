@@ -1,33 +1,46 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
+import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import loadEnv from './configuration';
 import * as path from 'path';
 
-export const dbConfig = (): DataSourceOptions => {
+const baseDbConfig = (): DataSourceOptions => {
   const env = loadEnv();
+  const host = env.DATABASE_HOST || env.HOST || 'localhost';
+  const port = Number(env.DATABASE_PORT || env.PORT_DB || 3306);
+  const isProduction = env.NODE_ENV === 'production';
+  const useSsl =
+    String(env.DATABASE_SSL || '').toLowerCase() === 'true' ||
+    String(host).includes('aivencloud.com');
 
   return {
     type: 'mysql',
-    host: env.HOST,
-    port: Number(env.PORT_DB),
-    username: env.USERNAME,
-    password: env.PASSWORD,
-    database: env.NAME,
+    host,
+    port,
+    username: env.DATABASE_USER || env.USERNAME || 'root',
+    password: env.DATABASE_PASS || env.PASSWORD || '',
+    database: env.DATABASE_NAME || env.NAME || 'defaultdb',
     entities: [
-      path.join(__dirname, '../../entities/**/*.entity.{js,ts}'),
-      path.join(__dirname, '../../modules/**/*.model.{js,ts}'),
+      path.join(__dirname, '../modules/**/*.model.{js,ts}'),
     ],
-    synchronize: true, // nhớ để true khi dev, false khi prod
-    logging: ['error'], // log query khi dev
-    // Performance optimization
+    synchronize: !isProduction,
+    logging: isProduction ? ['error', 'warn'] : ['error'],
     extra: {
       connectionLimit: 10,
-      acquireTimeout: 60000,
-      timeout: 60000,
       charset: 'utf8mb4',
+      ...(useSsl && {
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      }),
     },
     poolSize: 10,
     connectTimeout: 60000,
   };
 };
 
-export const dataSource = new DataSource(dbConfig());
+export const dbConfig = (): TypeOrmModuleOptions => ({
+  ...baseDbConfig(),
+  autoLoadEntities: true,
+});
+
+export const dataSource = new DataSource(baseDbConfig());

@@ -25,29 +25,15 @@ import { FavoriteModule } from './modules/favorite/module';
 import { LeaderboardModule } from './modules/leaderboard/module';
 import { KnowledgeTestModule } from './modules/knowledge-test/module';
 import { ChatGatewayModule } from './gateways/chat-gateway.module';
+import { RagModule } from './modules/rag/module';
+import { dbConfig } from './config/database';
+import loadEnv from './config/configuration';
 
-const isProduction = process.env.NODE_ENV === 'production';
+const env = loadEnv();
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DATABASE_HOST || 'localhost',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      username: process.env.DATABASE_USER || 'aioz',
-      password: process.env.DATABASE_PASS || 'aiozpass',
-      database: process.env.DATABASE_NAME || 'aioz_map',
-      autoLoadEntities: true,
-      synchronize: !isProduction,
-      ...(isProduction && {
-        extra: {
-          max: 20,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 5000,
-        },
-        logging: ['error', 'warn'],
-      }),
-    }),
+    TypeOrmModule.forRoot(dbConfig()),
 
     CacheModule.registerAsync({
       isGlobal: true,
@@ -68,8 +54,8 @@ const isProduction = process.env.NODE_ENV === 'production';
     }),
 
     ThrottlerModule.forRoot({
-      ttl: parseInt(process.env.THROTTLE_TTL || '60') * 1000,
-      limit: parseInt(process.env.THROTTLE_LIMIT || '60'),
+      ttl: parseInt(String(env.THROTTLE_TTL || '60')) * 1000,
+      limit: parseInt(String(env.THROTTLE_LIMIT || '60')),
     }),
 
     AuthModule,
@@ -92,6 +78,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     LeaderboardModule,
     KnowledgeTestModule,
     ChatGatewayModule,
+    RagModule,
   ],
   providers: [
     {
