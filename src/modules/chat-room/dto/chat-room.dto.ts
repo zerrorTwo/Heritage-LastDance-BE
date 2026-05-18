@@ -87,3 +87,42 @@ export class SaveMessageDto {
   @IsOptional()
   username?: string;
 }
+
+export class FindOrCreateDirectRoomDto {
+  @ApiProperty({ description: 'ID người dùng đối tác' })
+  @IsString()
+  @IsNotEmpty()
+  otherUserId!: string;
+
+  @ApiProperty({ description: 'Tên hiển thị của người yêu cầu', required: false })
+  @IsString()
+  @IsOptional()
+  username?: string;
+}
+
+export class SendDirectMessageDto {
+  @ApiProperty({ description: 'ID người nhận' })
+  @IsString()
+  @IsNotEmpty()
+  otherUserId!: string;
+
+  @ApiProperty({ description: 'Nội dung tin nhắn' })
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
+
+  @ApiProperty({
+    description: 'Loại tin nhắn',
+    enum: MessageType,
+    required: false,
+    default: MessageType.TEXT,
+  })
+  @IsEnum(MessageType)
+  @IsOptional()
+  type?: MessageType;
+
+  @ApiProperty({ description: 'Tên hiển thị', required: false })
+  @IsString()
+  @IsOptional()
+  username?: string;
+}

@@ -13,8 +13,6 @@ import {
   ApiBody,
   ApiResponse,
   ApiTags,
-  ApiParam,
-  ApiQuery,
   ApiBearerAuth,
   ApiExtraModels,
   getSchemaPath,

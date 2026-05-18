@@ -11,13 +11,13 @@ const loadEnv = () => {
 
   // Determine NODE_ENV
   // Default to 'dev' if running npm run dev (not set in environment)
-  const nodeEnv = process.env.NODE_ENV || 'dev';
+  const nodeEnv = process.env.NODE_ENV || 'development';
   process.env.NODE_ENV = nodeEnv;
 
   // Only load YAML if NODE_ENV is set and not 'docker'
   if (nodeEnv && nodeEnv !== 'docker') {
     let YAML_CONFIG_FILENAME = 'config.yaml';
-    if (nodeEnv === 'dev') {
+    if (nodeEnv === 'development') {
       YAML_CONFIG_FILENAME = 'dev.yaml';
     }
     if (nodeEnv === 'staging') {
