@@ -34,12 +34,42 @@ export class HeritageItem {
   @Column({ type: 'text', nullable: true })
   seoDescription!: string | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  alternativeNames!: string[] | null;
+
+  @Column({ type: 'text', nullable: true })
+  history!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  architecture!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  culturalSignificance!: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  constructionPeriod!: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  founder!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  recognition!: Record<string, any> | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  festivals!: Record<string, any> | null;
+
+  @Column({ type: 'text', nullable: true })
+  legends!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  sourceUrl!: string | null;
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt!: Date;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'tsvector', nullable: true, select: false })
   searchVector!: any;
 }
