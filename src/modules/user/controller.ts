@@ -1,4 +1,16 @@
-import { Controller, Get, Put, Body, UseGuards, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import { UserService } from './service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -56,5 +68,30 @@ export class UserController {
   async updateCurrentUser(@Body() dto: UpdateUserDto, @Req() req: any) {
     const user = await this.userService.updateUser(req.user.userId, dto);
     return Response.OK(user);
+  }
+
+  @Post('upload')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: { fileSize: 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return callback(new BadRequestException('Invalid image type'), false);
+        }
+        return callback(null, true);
+      },
+    }),
+  )
+  @ApiOperation({
+    summary: 'Upload current user avatar',
+    description: 'Uploads an avatar image and returns an imageUrl for profile update',
+  })
+  async uploadAvatar(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Image file is required');
+
+    return Response.OK({
+      imageUrl: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+    });
   }
 }

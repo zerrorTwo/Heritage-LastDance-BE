@@ -51,6 +51,14 @@ const createMockUser = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const createExpectedUserProfile = (user: ReturnType<typeof createMockUser>) => ({
+  id: user.id,
+  email: user.email,
+  walletAddress: user.walletAddress,
+  isActive: user.isActive,
+  createdAt: user.createdAt,
+});
+
 const createMockSession = (overrides: Record<string, unknown> = {}) => ({
   id: 'session-1',
   userId: 'user-1',
@@ -175,8 +183,9 @@ describe('AuthService', () => {
         accessToken: 'mock-access-token',
         refreshToken: 'raw-refresh-token',
         sessionId: mockSession.id,
-        user: mockUser,
+        user: createExpectedUserProfile(mockUser),
       });
+      expect(result.user).not.toHaveProperty('password');
       expect(mockUserRepo.findByEmail).toHaveBeenCalledWith(email);
       expect(compareBcrypt).toHaveBeenCalledWith(password, mockUser.password);
       expect(mockSessionRepo.create).toHaveBeenCalled();
@@ -313,8 +322,9 @@ describe('AuthService', () => {
         accessToken: 'mock-access-token',
         refreshToken: 'raw-refresh-token',
         sessionId: mockSession.id,
-        user: mockUser,
+        user: createExpectedUserProfile(mockUser),
       });
+      expect(result.user).not.toHaveProperty('password');
       expect(mockUserRepo.create).toHaveBeenCalledWith({
         email: mockChallenge.identifier,
         password: mockChallenge.tempPassword,
@@ -577,8 +587,9 @@ describe('AuthService', () => {
         accessToken: 'mock-access-token',
         refreshToken: 'raw-refresh-token',
         sessionId: mockSession.id,
-        user: mockUser,
+        user: createExpectedUserProfile(mockUser),
       });
+      expect(result.user).not.toHaveProperty('password');
       expect(mockUserRepo.update).toHaveBeenCalled();
       expect(mockSessionRepo.revokeAllByUserId).toHaveBeenCalledWith(mockUser.id);
       expect(mockAuditRepo.create).toHaveBeenCalledWith({
@@ -665,8 +676,9 @@ describe('AuthService', () => {
         accessToken: 'mock-access-token',
         refreshToken: 'raw-refresh-token',
         sessionId: mockSession.id,
-        user: mockUser,
+        user: createExpectedUserProfile(mockUser),
       });
+      expect(result.user).not.toHaveProperty('password');
       expect(mockAuditRepo.create).toHaveBeenCalled();
     });
 
@@ -817,8 +829,9 @@ describe('AuthService', () => {
         accessToken: 'mock-access-token',
         refreshToken: 'raw-refresh-token',
         sessionId: mockSession.id,
-        user: mockUser,
+        user: createExpectedUserProfile(mockUser),
       });
+      expect(result.user).not.toHaveProperty('password');
       expect(mockAuditRepo.create).toHaveBeenCalled();
     });
 

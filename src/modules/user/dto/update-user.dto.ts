@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class UpdateUserDto {
   @ApiProperty({
@@ -20,4 +26,55 @@ export class UpdateUserDto {
   @IsString()
   @IsOptional()
   walletAddress?: string;
+
+  @ApiProperty({
+    description: 'Display name shown in the application',
+    example: 'Nguyen Van A',
+    required: false,
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  displayname?: string | null;
+
+  @ApiProperty({
+    description: 'Phone number',
+    example: '0901234567',
+    required: false,
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  phone?: string | null;
+
+  @ApiProperty({
+    description: 'Gender',
+    example: 'other',
+    enum: ['men', 'woman', 'other'],
+    required: false,
+    nullable: true,
+  })
+  @IsIn(['men', 'woman', 'other'])
+  @IsOptional()
+  gender?: string | null;
+
+  @ApiProperty({
+    description: 'Date of birth',
+    example: '2002-01-31',
+    required: false,
+    nullable: true,
+  })
+  @IsDateString()
+  @IsOptional()
+  dateOfBirth?: string | null;
+
+  @ApiProperty({
+    description: 'Avatar URL or data URL',
+    example: 'https://example.com/avatar.jpg',
+    required: false,
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  avatar?: string | null;
 }

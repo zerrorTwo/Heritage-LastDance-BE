@@ -19,6 +19,21 @@ export class UserModel {
   @Column({ type: 'varchar', nullable: true })
   walletAddress!: string | null;
 
+  @Column({ name: 'displayName', type: 'varchar', nullable: true })
+  displayname!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  phone!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  gender!: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  dateOfBirth!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  avatar!: string | null;
+
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
@@ -34,6 +49,11 @@ export interface CreateUserData {
   email?: string | null;
   password?: string | null;
   walletAddress?: string | null;
+  displayname?: string | null;
+  phone?: string | null;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  avatar?: string | null;
 }
 
 export interface IUserRepository {

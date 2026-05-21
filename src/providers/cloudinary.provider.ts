@@ -15,7 +15,7 @@ export class CloudinaryProvider {
 
   async uploadStream(
     file: Express.Multer.File,
-    folderName: string = 'avatarHealth',
+    folderName: string = 'avatarHeritage',
     publicId?: string,
   ): Promise<any> {
     return new Promise((resolve, reject) => {

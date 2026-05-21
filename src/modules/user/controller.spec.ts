@@ -73,5 +73,22 @@ describe('UserController', () => {
       expect(userService.updateUser).toHaveBeenCalledWith(mockRequest.user.userId, dto);
       expect(result).toEqual({ data: updatedUser });
     });
+
+    it('should call userService.updateUser with optional profile fields', async () => {
+      const dto = {
+        displayname: 'Nguyen Van A',
+        phone: '0901234567',
+        gender: 'other',
+        dateOfBirth: '2002-01-31',
+        avatar: 'data:image/png;base64,avatar',
+      };
+      const updatedUser = { ...mockUser, ...dto };
+      mockUserService.updateUser.mockResolvedValue(updatedUser);
+
+      const result = await controller.updateCurrentUser(dto, mockRequest);
+
+      expect(userService.updateUser).toHaveBeenCalledWith(mockRequest.user.userId, dto);
+      expect(result).toEqual({ data: updatedUser });
+    });
   });
 });

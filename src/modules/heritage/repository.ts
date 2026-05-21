@@ -99,11 +99,12 @@ export class HeritageRepository {
     return item;
   }
 
-  async findByIds(ids: string[]): Promise<HeritageItem[]> {
+  async findByIds(ids: string[]): Promise<HeritageWithEmbeddedData[]> {
     if (!ids.length) return [];
-    return this.repo.createQueryBuilder('heritage')
+    const items = await this.repo.createQueryBuilder('heritage')
       .where('heritage.id IN (:...ids)', { ids })
       .getMany();
+    return this.attachEmbeddedData(items);
   }
 
   async findAll(filter?: HeritageFilter): Promise<{ items: HeritageWithEmbeddedData[]; total: number }> {

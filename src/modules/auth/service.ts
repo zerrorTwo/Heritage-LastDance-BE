@@ -22,6 +22,7 @@ import {
 import { recoverWalletAddress } from '../../utils/wallet/wallet.util';
 import { ChallengeType, IdentifierType } from './model';
 import { AuditAction } from '../audit-log/model';
+import { UserModel } from '../user/model';
 
 // Helper to parse env numbers with fallback
 const getEnvNumber = (key: string, fallback: number): number => {
@@ -107,7 +108,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -191,7 +192,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: session.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -343,7 +344,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -398,7 +399,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -538,7 +539,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -645,6 +646,16 @@ export class AuthService {
 
   private createAccessToken(userId: string, sessionId: string): string {
     return this.jwtService.sign({ sub: userId, sessionId });
+  }
+
+  private toUserProfile(user: UserModel) {
+    return {
+      id: user.id,
+      email: user.email,
+      walletAddress: user.walletAddress,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    };
   }
 
   private async checkUserNotExists(email: string): Promise<void> {

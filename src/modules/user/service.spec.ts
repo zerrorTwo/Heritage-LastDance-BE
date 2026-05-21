@@ -106,6 +106,25 @@ describe('UserService', () => {
       expect(result.walletAddress).toBe('0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38');
     });
 
+    it('should update optional profile fields', async () => {
+      const dto = {
+        displayname: 'Nguyen Van A',
+        phone: '0901234567',
+        gender: 'other',
+        dateOfBirth: '2002-01-31',
+        avatar: 'data:image/png;base64,avatar',
+      };
+      mockUserRepo.findById.mockResolvedValue({ ...mockUser });
+      mockUserRepo.update.mockResolvedValue(undefined);
+
+      const result = await service.updateUser(userId, dto);
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining(dto),
+      );
+      expect(result).toEqual(expect.objectContaining(dto));
+    });
+
     it('should throw BadRequestException when user not found', async () => {
       mockUserRepo.findById.mockResolvedValue(null);
 

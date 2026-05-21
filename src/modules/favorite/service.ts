@@ -66,24 +66,28 @@ export class FavoriteService {
       .map((item) => item.heritageId)
       .filter(Boolean);
 
-    const heritageMap = new Map<string, { id: string; title: string; slug: string; status: string }>();
+    const heritageMap = new Map<string, any>();
     if (heritageIds.length > 0) {
       const heritages = await this.heritageRepo.findByIds(heritageIds);
       for (const h of heritages) {
-        heritageMap.set(h.id, {
-          id: h.id,
-          title: h.title,
-          slug: h.slug,
-          status: h.status,
-        });
+        heritageMap.set(h.id, h);
       }
     }
 
-    const heritageDetails = paginatedItems.map((item) =>
-      heritageMap.get(item.heritageId) || null,
-    );
+    const heritageDetails = paginatedItems
+      .map((item) => {
+        const heritage = heritageMap.get(item.heritageId);
+        if (!heritage) return null;
+
+        return {
+          ...heritage,
+          favoriteAddedAt: item.addedAt,
+        };
+      })
+      .filter(Boolean);
 
     return {
+      userId,
       items: heritageDetails.filter(Boolean),
       pagination: { page, limit, totalItems, totalPages },
     };

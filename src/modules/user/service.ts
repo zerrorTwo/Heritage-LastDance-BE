@@ -18,6 +18,11 @@ export class UserService {
 
     if (dto.email) user.email = dto.email;
     if (dto.walletAddress) user.walletAddress = dto.walletAddress;
+    if (dto.displayname !== undefined) user.displayname = dto.displayname;
+    if (dto.phone !== undefined) user.phone = dto.phone;
+    if (dto.gender !== undefined) user.gender = dto.gender;
+    if (dto.dateOfBirth !== undefined) user.dateOfBirth = dto.dateOfBirth;
+    if (dto.avatar !== undefined) user.avatar = dto.avatar;
 
     await this.userRepo.update(user);
     return user;
