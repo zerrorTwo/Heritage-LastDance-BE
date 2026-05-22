@@ -3,7 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
+
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
 
 @Entity('users')
 export class UserModel {
@@ -34,11 +40,17 @@ export class UserModel {
   @Column({ type: 'text', nullable: true })
   avatar!: string | null;
 
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role!: UserRole;
+
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  updatedAt!: Date;
 
   isActiveUser(): boolean {
     return this.isActive;
@@ -54,12 +66,24 @@ export interface CreateUserData {
   gender?: string | null;
   dateOfBirth?: string | null;
   avatar?: string | null;
+  role?: UserRole;
+}
+
+export interface FindAllUsersOptions {
+  page: number;
+  limit: number;
+  search?: string;
+  role?: UserRole;
+  sort?: string;
+  order?: 'ASC' | 'DESC';
 }
 
 export interface IUserRepository {
   findByEmail(email: string): Promise<UserModel | null>;
   findById(id: string): Promise<UserModel | null>;
   findByWalletAddress(walletAddress: string): Promise<UserModel | null>;
+  findAll(opts: FindAllUsersOptions): Promise<[UserModel[], number]>;
   create(data: CreateUserData): Promise<UserModel>;
   update(user: Partial<UserModel>): Promise<void>;
+  delete(id: string): Promise<void>;
 }

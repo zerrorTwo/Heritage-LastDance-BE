@@ -23,7 +23,7 @@ export class JwtAuthGuard implements CanActivate {
     // no-op
   }
 
-  canActivate(context: ExecutionContext): boolean {
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -57,6 +57,7 @@ export class JwtAuthGuard implements CanActivate {
 
       request.user = {
         sub: decoded.sub,
+        userId: decoded.sub,
         email: decoded.email,
         sessionId: decoded.sessionId,
         iat: decoded.iat,

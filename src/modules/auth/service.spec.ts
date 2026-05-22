@@ -45,18 +45,39 @@ const createMockUser = (overrides: Record<string, unknown> = {}) => ({
   email: 'test@example.com',
   password: 'hashedPassword',
   walletAddress: null,
+  displayname: null,
+  phone: null,
+  gender: null,
+  dateOfBirth: null,
+  avatar: null,
+  role: 'user',
   isActive: true,
   createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-02'),
   isActiveUser: jest.fn().mockReturnValue(true),
   ...overrides,
 });
 
 const createExpectedUserProfile = (user: ReturnType<typeof createMockUser>) => ({
   id: user.id,
+  _id: user.id,
   email: user.email,
   walletAddress: user.walletAddress,
+  displayname: user.displayname,
+  phone: user.phone,
+  gender: user.gender,
+  dateOfBirth: user.dateOfBirth,
+  avatar: user.avatar,
+  role: user.role,
   isActive: user.isActive,
+  account: {
+    email: user.email,
+    isActive: user.isActive,
+    isVerified: true,
+  },
   createdAt: user.createdAt,
+  createAt: user.createdAt,
+  updatedAt: user.updatedAt,
 });
 
 const createMockSession = (overrides: Record<string, unknown> = {}) => ({
