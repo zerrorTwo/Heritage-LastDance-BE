@@ -67,6 +67,7 @@ class SnakeNamingStrategy
 
 const baseDbConfig = (): DataSourceOptions => {
   const env = loadEnv();
+  console.log('ENV loaded:', JSON.stringify(env, null, 2)); // ← thêm dòng này
   const host = env.DATABASE_HOST || env.HOST || 'localhost';
   const type = env.DATABASE_TYPE || 'postgres';
   const port = Number(env.DATABASE_PORT || env.PORT_DB || 5432);
@@ -74,6 +75,10 @@ const baseDbConfig = (): DataSourceOptions => {
   const useSsl =
     String(env.DATABASE_SSL || '').toLowerCase() === 'true' ||
     String(host).includes('aivencloud.com');
+
+  console.log(
+    `[DB] ${type} ${host}:${port}/${env.DATABASE_NAME || env.NAME || 'defaultdb'} ssl=${useSsl}`,
+  );
 
   return {
     type,
