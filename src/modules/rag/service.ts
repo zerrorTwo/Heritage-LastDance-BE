@@ -49,6 +49,21 @@ type AiQueryResponse = {
     slug: string;
     title: string;
   }>;
+  citations?: Array<{
+    sourceId: string;
+    title: string;
+    page?: number;
+    snippet: string;
+    evidenceType: string;
+    score?: number;
+  }>;
+  rawSources?: Array<{
+    sourceId: string;
+    title: string;
+    sourceType: string;
+    fileName?: string;
+    url?: string;
+  }>;
 };
 
 @Injectable()
@@ -135,6 +150,8 @@ export class RagService {
         mode: this.chatMode,
         sources: [],
         wikiLinks: [],
+        citations: [],
+        rawSources: [],
       };
     }
 
@@ -146,6 +163,8 @@ export class RagService {
       mode: this.chatMode,
       sources,
       wikiLinks,
+      citations: [],
+      rawSources: [],
     };
   }
 
