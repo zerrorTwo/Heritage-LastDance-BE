@@ -21,6 +21,7 @@ import { AdminUpdateUserDto, UpdateUserDto } from './dto/update-user.dto';
 import { UserProfileDto } from './dto/user-response.dto';
 import { Response, GeneralResponse } from '../../common/response';
 import { AdminGuard } from '../../common/guards/admin.guard';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 @ApiExtraModels(GeneralResponse, UserProfileDto)
 @Controller('users')
@@ -28,7 +29,10 @@ import { AdminGuard } from '../../common/guards/admin.guard';
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly cloudinaryProvider: CloudinaryProvider,
+  ) {}
 
   @Get('me')
   @ApiOperation({
@@ -138,8 +142,11 @@ export class UserController {
   async uploadAvatar(@UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('Image file is required');
 
+    const uploaded = await this.cloudinaryProvider.uploadStream(file, 'avatarHeritage');
+
     return Response.OK({
-      imageUrl: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+      imageUrl: uploaded.secure_url,
+      publicId: uploaded.public_id,
     });
   }
 }

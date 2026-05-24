@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './controller';
 import { UserService } from './service';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 const mockUser = {
   id: 'user-1',
@@ -21,6 +22,10 @@ describe('UserController', () => {
     updateUser: jest.fn(),
   };
 
+  const mockCloudinaryProvider = {
+    uploadStream: jest.fn(),
+  };
+
   const mockRequest = {
     user: {
       userId: 'user-1',
@@ -33,7 +38,10 @@ describe('UserController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useValue: mockUserService }],
+      providers: [
+        { provide: UserService, useValue: mockUserService },
+        { provide: CloudinaryProvider, useValue: mockCloudinaryProvider },
+      ],
     }).compile();
 
     controller = module.get<UserController>(UserController);
@@ -89,6 +97,26 @@ describe('UserController', () => {
 
       expect(userService.updateUser).toHaveBeenCalledWith(mockRequest.user.userId, dto);
       expect(result).toEqual({ data: updatedUser });
+    });
+  });
+
+  describe('uploadAvatar', () => {
+    it('should upload avatar to cloudinary and return OK response', async () => {
+      const file = { buffer: Buffer.from('test'), mimetype: 'image/png' } as Express.Multer.File;
+      mockCloudinaryProvider.uploadStream.mockResolvedValue({
+        secure_url: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
+        public_id: 'avatarHeritage/avatar',
+      });
+
+      const result = await controller.uploadAvatar(file);
+
+      expect(mockCloudinaryProvider.uploadStream).toHaveBeenCalledWith(file, 'avatarHeritage');
+      expect(result).toEqual({
+        data: {
+          imageUrl: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
+          publicId: 'avatarHeritage/avatar',
+        },
+      });
     });
   });
 });

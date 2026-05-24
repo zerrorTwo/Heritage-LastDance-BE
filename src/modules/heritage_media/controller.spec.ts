@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HeritageMediaController } from './controller';
 import { HeritageMediaService } from './service';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 const mockMedia = {
   id: '1',
@@ -21,6 +22,10 @@ describe('HeritageMediaController', () => {
     deleteMedia: jest.fn(),
   };
 
+  const mockCloudinaryProvider = {
+    uploadStream: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -28,11 +33,30 @@ describe('HeritageMediaController', () => {
       controllers: [HeritageMediaController],
       providers: [
         { provide: HeritageMediaService, useValue: mockService },
+        { provide: CloudinaryProvider, useValue: mockCloudinaryProvider },
       ],
     }).compile();
 
     controller = module.get<HeritageMediaController>(HeritageMediaController);
     service = module.get<HeritageMediaService>(HeritageMediaService);
+  });
+
+  describe('uploadMedia', () => {
+    it('should upload image to cloudinary and return imageUrl with publicId', async () => {
+      const file = { buffer: Buffer.from('test'), mimetype: 'image/png' } as Express.Multer.File;
+      mockCloudinaryProvider.uploadStream.mockResolvedValue({
+        secure_url: 'https://res.cloudinary.com/demo/image/upload/media.png',
+        public_id: 'heritage-media/media',
+      });
+
+      const result = await controller.uploadMedia(file);
+
+      expect(mockCloudinaryProvider.uploadStream).toHaveBeenCalledWith(file, 'heritage-media');
+      expect(result).toEqual({
+        imageUrl: 'https://res.cloudinary.com/demo/image/upload/media.png',
+        publicId: 'heritage-media/media',
+      });
+    });
   });
 
   describe('getMedia', () => {
