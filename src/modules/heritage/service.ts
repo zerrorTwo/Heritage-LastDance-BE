@@ -12,6 +12,41 @@ export class HeritageService {
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
+  private slugify(value: string) {
+    const vietnameseCharMap: Record<string, string> = {
+      a: 'áàảãạăắằẳẵặâấầẩẫậ',
+      d: 'đ',
+      e: 'éèẻẽẹêếềểễệ',
+      i: 'íìỉĩị',
+      o: 'óòỏõọôốồổỗộơớờởỡợ',
+      u: 'úùủũụưứừửữự',
+      y: 'ýỳỷỹỵ',
+    };
+
+    let slug = value.toLowerCase().trim();
+    for (const [ascii, chars] of Object.entries(vietnameseCharMap)) {
+      slug = slug.replace(new RegExp(`[${chars}]`, 'g'), ascii);
+    }
+
+    return slug
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  private async buildUniqueSlug(title: string, currentId?: string) {
+    const baseSlug = this.slugify(title) || 'heritage';
+    let slug = baseSlug;
+    let suffix = 1;
+
+    while (true) {
+      const existing = await this.heritageRepo.findBySlug(slug);
+      if (!existing || existing.id === currentId) return slug;
+      slug = `${baseSlug}-${suffix++}`;
+    }
+  }
+
   async getHeritageBySlug(slug: string) {
     const cacheKey = `heritage:slug:${slug}`;
     const cached = await this.cacheManager.get(cacheKey);
@@ -39,7 +74,10 @@ export class HeritageService {
   }
 
   async createHeritage(dto: CreateHeritageDto) {
-    const result = await this.heritageRepo.create(dto);
+    const result = await this.heritageRepo.create({
+      ...dto,
+      slug: dto.slug || (await this.buildUniqueSlug(dto.title)),
+    });
     await this.cacheManager.del('heritage:list');
     return result;
   }
@@ -47,7 +85,11 @@ export class HeritageService {
   async updateHeritage(id: string, dto: UpdateHeritageDto) {
     const heritage = await this.heritageRepo.findById(id);
     if (!heritage) throw new BadRequestException('Heritage item not found!');
-    await this.heritageRepo.update(id, dto);
+    const updateData = {
+      ...dto,
+      ...(dto.title && !dto.slug ? { slug: await this.buildUniqueSlug(dto.title, id) } : {}),
+    };
+    await this.heritageRepo.update(id, updateData);
     await this.cacheManager.del(`heritage:id:${id}`);
     await this.cacheManager.del(`heritage:slug:${heritage.slug}`);
     await this.cacheManager.del('heritage:list');

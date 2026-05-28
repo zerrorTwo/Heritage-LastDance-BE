@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsArray, IsObject } from 'class-validator';
 
 export class UpdateHeritageDto {
   @IsOptional()
@@ -35,4 +35,44 @@ export class UpdateHeritageDto {
   @IsOptional()
   @IsString()
   seoDescription?: string;
+
+  @IsOptional()
+  @IsArray()
+  alternativeNames?: string[];
+
+  @IsOptional()
+  @IsString()
+  history?: string;
+
+  @IsOptional()
+  @IsString()
+  architecture?: string;
+
+  @IsOptional()
+  @IsString()
+  culturalSignificance?: string;
+
+  @IsOptional()
+  @IsString()
+  constructionPeriod?: string;
+
+  @IsOptional()
+  @IsString()
+  founder?: string;
+
+  @IsOptional()
+  @IsObject()
+  recognition?: Record<string, any>;
+
+  @IsOptional()
+  @IsObject()
+  festivals?: Record<string, any>;
+
+  @IsOptional()
+  @IsString()
+  legends?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceUrl?: string;
 }
