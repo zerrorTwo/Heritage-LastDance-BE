@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,10 +9,14 @@ import {
   Put,
   Query,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiExtraModels,
   ApiOperation,
   ApiQuery,
@@ -23,12 +28,16 @@ import { CommentService } from './service';
 import { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { GeneralResponse, Response } from '../../common/response';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 @ApiExtraModels(GeneralResponse)
 @ApiTags('Comments')
 @Controller('comments')
 export class CommentController {
-  constructor(private readonly commentService: CommentService) {}
+  constructor(
+    private readonly commentService: CommentService,
+    private readonly cloudinaryProvider: CloudinaryProvider,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách bình luận với phân trang' })
@@ -56,10 +65,42 @@ export class CommentController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('images', 5, {
+      limits: { fileSize: 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+          'image/bmp',
+          'image/tiff',
+        ];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return callback(new BadRequestException('Invalid image type'), false);
+        }
+        return callback(null, true);
+      },
+    }),
+  )
   @ApiOperation({ summary: 'Tạo bình luận mới' })
   @ApiResponse({ status: 201, description: 'Bình luận được tạo thành công' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createNew(@Body() dto: CreateCommentDto, @Req() req: any) {
+  async createNew(
+    @Body() dto: CreateCommentDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: any,
+  ) {
+    if (files?.length) {
+      const uploaded = await Promise.all(
+        files.map((file) =>
+          this.cloudinaryProvider.uploadStream(file, 'commentHeritage'),
+        ),
+      );
+      dto.images = uploaded.map((u) => u.secure_url);
+    }
     const result = await this.commentService.createNew(dto, req.user.userId);
     return Response.Created(result);
   }
