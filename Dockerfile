@@ -14,6 +14,9 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Copy static assets (templates) into dist
+RUN cp -r /app/src/pkg/mail/templates /app/dist/pkg/mail/templates
+
 # Prune devDependencies to keep production image small
 RUN npm prune --production
 
@@ -27,7 +30,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/config.yaml ./
-COPY --from=builder /app/Configs ./Configs
+COPY --from=builder /app/configs ./configs
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

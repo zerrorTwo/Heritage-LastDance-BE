@@ -104,12 +104,17 @@ export class KnowledgeTestService {
       optionsByQuestion.set(opt.questionId, arr);
     }
 
+    const stripOption = (opt: any) => {
+      const { isCorrect, ...rest } = opt;
+      return rest;
+    };
+
     return {
       ...test,
       averageScore: Number(test.averageScore),
       questions: questions.map((q) => ({
         ...q,
-        options: optionsByQuestion.get(q.id) ?? [],
+        options: (optionsByQuestion.get(q.id) ?? []).map(stripOption),
       })),
     };
   }
@@ -255,7 +260,7 @@ export class KnowledgeTestService {
       title: test.title,
       questions: questions.map((q) => ({
         ...q,
-        options: byQuestion.get(q.id) ?? [],
+        options: (byQuestion.get(q.id) ?? []).map(({ isCorrect, ...rest }) => rest),
       })),
     };
   }
@@ -274,7 +279,10 @@ export class KnowledgeTestService {
     return {
       testId: test.id,
       testTitle: test.title,
-      question: { ...question, options },
+      question: {
+        ...question,
+        options: options.map(({ isCorrect, ...rest }) => rest),
+      },
     };
   }
 
@@ -365,7 +373,7 @@ export class KnowledgeTestService {
       testId,
       questionId: question.id,
       questionContent: question.content,
-      options,
+      options: options.map(({ isCorrect, ...rest }) => rest),
     };
   }
 
