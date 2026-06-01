@@ -74,7 +74,8 @@ const baseDbConfig = (): DataSourceOptions => {
   const isProduction = env.NODE_ENV === 'production';
   const useSsl =
     String(env.DATABASE_SSL || '').toLowerCase() === 'true' ||
-    String(host).includes('aivencloud.com');
+    String(host).includes('aivencloud.com') ||
+    String(host).includes('neon.tech');
 
   console.log(
     `[DB] ${type} ${host}:${port}/${env.DATABASE_NAME || env.NAME || 'defaultdb'} ssl=${useSsl}`,
@@ -91,7 +92,7 @@ const baseDbConfig = (): DataSourceOptions => {
       path.join(__dirname, '../modules/**/*.model.{js,ts}'),
     ],
     namingStrategy: new SnakeNamingStrategy(),
-    synchronize: !isProduction,
+    synchronize: String(env.DB_SYNCHRONIZE || (!isProduction)).toLowerCase() === 'true',
     logging: isProduction ? ['error', 'warn'] : ['error'],
     ssl: useSsl ? { rejectUnauthorized: false } : false,
     extra: useSsl ? { ssl: { rejectUnauthorized: false } } : undefined,

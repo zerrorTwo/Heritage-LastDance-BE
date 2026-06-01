@@ -273,6 +273,35 @@ export class KnowledgeTestAttemptRepository {
     };
   }
 
+  async getUserPointSummary(userId: string): Promise<{
+    totalPoints: number;
+    completedTests: number;
+    totalAttempts: number;
+    sources: Array<{ testId: string; bestScore: number; attempts: number }>;
+  }> {
+    const rows = await this.repo
+      .createQueryBuilder('a')
+      .select('a.testId', 'testId')
+      .addSelect('MAX(a.score)', 'bestScore')
+      .addSelect('COUNT(a.id)', 'attempts')
+      .where('a.userId = :userId', { userId })
+      .groupBy('a.testId')
+      .getRawMany<{ testId: string; bestScore: string | null; attempts: string }>();
+
+    const sources = rows.map((row) => ({
+      testId: row.testId,
+      bestScore: Math.round(Number(row.bestScore ?? 0)),
+      attempts: parseInt(row.attempts ?? '0', 10),
+    }));
+
+    return {
+      totalPoints: sources.reduce((sum, source) => sum + source.bestScore, 0),
+      completedTests: sources.length,
+      totalAttempts: sources.reduce((sum, source) => sum + source.attempts, 0),
+      sources,
+    };
+  }
+
   async deleteByTestId(testId: string): Promise<void> {
     await this.repo.delete({ testId });
   }

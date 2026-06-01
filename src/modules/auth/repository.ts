@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, MoreThanOrEqual } from 'typeorm';
 import {
   AuthChallengeModel,
   PasswordResetModel,
@@ -45,8 +45,13 @@ export class AuthRepository implements IAuthChallengeRepository {
     identifier: string,
     challengeType: string,
   ): Promise<number> {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     return this.challengeRepo.count({
-      where: { identifier, challengeType: challengeType as any },
+      where: {
+        identifier,
+        challengeType: challengeType as any,
+        createdAt: MoreThanOrEqual(oneHourAgo),
+      },
     });
   }
 

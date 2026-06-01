@@ -8,18 +8,25 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import * as jwt from 'jsonwebtoken';
+import loadEnv from '../config/configuration';
 import { ChatRoomService } from '../modules/chat-room/service';
 import { MessageType } from '../modules/chat-room/model';
 
-interface UserData {
-  userId: string;
-  username: string;
+const env = loadEnv();
+
+interface AuthenticatedSocket extends Socket {
+  data: {
+    userId: string;
+    username: string;
+    email: string;
+  };
 }
 
 @WebSocketGateway({
   cors: {
     origin: process.env.NODE_ENV === 'production'
-      ? (process.env.ALLOWED_ORIGINS || '').split(',')
+      ? (process.env.ALLOWED_ORIGINS || 'https://yourdomain.com').split(',').map(o => o.trim()).filter(Boolean)
       : true,
     credentials: true,
   },
@@ -35,17 +42,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(private readonly chatRoomService: ChatRoomService) {}
 
   handleConnection(client: Socket) {
-    const userId = client.handshake.query.userId as string;
-    const username = client.handshake.query.userName as string;
+    try {
+      const token = this.extractToken(client);
+      if (!token) {
+        client.disconnect();
+        return;
+      }
 
-    if (!userId) {
+      const decoded = jwt.verify(token, env.JWT_SECRET as string) as {
+        sub: string;
+        sessionId: string;
+        email?: string;
+      };
+
+      if (!decoded?.sub || !decoded?.sessionId) {
+        client.disconnect();
+        return;
+      }
+
+      client.data.userId = decoded.sub;
+      client.data.username = decoded.email ?? decoded.sub;
+      client.data.email = decoded.email ?? '';
+
+      this.userSocketMap.set(decoded.sub, client.id);
+    } catch {
       client.disconnect();
-      return;
     }
-
-    this.userSocketMap.set(userId, client.id);
-    client.data.userId = userId;
-    client.data.username = username || 'Anonymous';
   }
 
   handleDisconnect(client: Socket) {
@@ -57,18 +79,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('join-room')
   async handleJoinRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { heritageId: string; userData: UserData },
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { heritageId: string },
   ) {
-    const { heritageId, userData } = data;
-    if (!heritageId || !userData?.userId) return;
+    const { heritageId } = data;
+    const userId = client.data.userId;
+    const username = client.data.username;
+
+    if (!heritageId || !userId) return;
 
     const roomId = `heritage_${heritageId}`;
 
     try {
       await this.chatRoomService.joinRoom(heritageId, {
-        userId: userData.userId,
-        username: userData.username,
+        userId,
+        username,
       });
     } catch {
       // Room may not exist yet, continue
@@ -77,6 +102,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.join(roomId);
     client.emit('room-joined', { roomId });
 
+    const userData = { userId, username };
     const users = await this.chatRoomService.getRoomUsers(heritageId);
     client.broadcast.to(roomId).emit('user-joined', { ...userData, roomId });
     this.server.to(roomId).emit('room-users', { roomId, users });
@@ -84,10 +110,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('leave-room')
   async handleLeaveRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { heritageId: string; userId: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { heritageId: string },
   ) {
-    const { heritageId, userId } = data;
+    const { heritageId } = data;
+    const userId = client.data.userId;
     const roomId = `heritage_${heritageId}`;
 
     try {
@@ -105,28 +132,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('new-message')
   async handleMessage(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
-    data: { roomId: string; message: { content: string; userId: string; username: string } },
+    data: { roomId: string; content: string },
   ) {
-    const { roomId, message } = data;
-    if (!message?.content?.trim()) return;
+    const { roomId, content } = data;
+    if (!content?.trim()) return;
 
     const heritageId = roomId?.replace('heritage_', '');
     if (!heritageId) return;
 
+    const userId = client.data.userId;
+    const username = client.data.username;
+
     try {
       const saved = await this.chatRoomService.saveMessage({
         roomId: heritageId,
-        userId: message.userId,
-        content: message.content,
+        userId,
+        content,
         type: MessageType.TEXT,
-        username: message.username,
+        username,
       });
 
       this.server.to(roomId).emit('new-message', {
         ...saved,
-        username: message.username,
+        username,
         roomId,
       });
     } catch (err) {
@@ -138,20 +168,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('typing')
   handleTyping(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { roomId: string; isTyping: boolean; userId: string; username: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: string; isTyping: boolean },
   ) {
-    const { roomId } = data;
+    const { roomId, isTyping } = data;
     client.broadcast.to(roomId).emit('user-typing', {
-      userId: data.userId,
-      username: data.username,
-      isTyping: data.isTyping,
+      userId: client.data.userId,
+      username: client.data.username,
+      isTyping,
     });
   }
 
   @SubscribeMessage('get-messages')
   async handleGetMessages(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
     data: { roomId: string; limit?: number; lastMessageTimestamp?: string },
   ) {
@@ -165,17 +195,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('join-dm')
   async handleJoinDM(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { userId1: string; userId2: string; userData?: UserData },
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { otherUserId: string },
   ) {
-    const { userId1, userId2, userData } = data;
-    if (!userId1 || !userId2) return;
+    const { otherUserId } = data;
+    const userId = client.data.userId;
+    if (!otherUserId) return;
 
     try {
       const room = await this.chatRoomService.findOrCreateDirectRoom(
-        userId1,
-        userId2,
-        userData?.username,
+        userId,
+        otherUserId,
+        client.data.username,
       );
       client.join(room.id);
       client.emit('join-dm', { dmRoomId: room.id });
@@ -186,30 +217,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('send-dm')
   async handleDirectMessage(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
     data: {
-      userId: string;
       otherUserId: string;
-      message: { content: string; type?: string; username?: string };
+      content: string;
     },
   ) {
-    const { userId, otherUserId, message } = data;
-    if (!message?.content?.trim()) return;
+    const { otherUserId, content } = data;
+    if (!content?.trim()) return;
+
+    const userId = client.data.userId;
 
     try {
       const { room, message: saved } = await this.chatRoomService.saveDirectMessage(
         userId,
         otherUserId,
-        message.content,
+        content,
         undefined,
-        message.username,
+        client.data.username,
       );
 
       this.server.to(room.id).emit('new-dm', {
         ...saved,
         dmRoomId: room.id,
-        username: message.username,
+        username: client.data.username,
       });
     } catch (err) {
       client.emit('error', { message: (err as Error).message });
@@ -218,19 +250,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('get-dm-messages')
   async handleGetDMMessages(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
-    data: { userId1: string; userId2: string; page?: number; limit?: number },
+    data: { otherUserId: string; page?: number; limit?: number },
   ) {
-    const { userId1, userId2, page = 1, limit = 20 } = data;
-    if (!userId1 || !userId2) return;
+    const { otherUserId, page = 1, limit = 20 } = data;
+    if (!otherUserId) return;
 
     const result = await this.chatRoomService.getDirectMessages(
-      userId1,
-      userId2,
+      client.data.userId,
+      otherUserId,
       page,
       limit,
     );
     client.emit('dm-messages', result);
+  }
+
+  private extractToken(client: Socket): string | null {
+    const token = client.handshake.auth?.token
+      || client.handshake.query?.token as string;
+
+    if (!token) return null;
+
+    if (token.startsWith('Bearer ')) {
+      return token.slice(7);
+    }
+
+    return token;
   }
 }

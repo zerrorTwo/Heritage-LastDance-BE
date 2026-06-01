@@ -157,11 +157,6 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired OTP code!');
     }
 
-    const existingUser = await this.userRepo.findByEmail(authChallenge.identifier);
-    if (existingUser) {
-      throw new ConflictException('User already exists!');
-    }
-
     const currentUser = await this.userRepo.create({
       email: authChallenge.identifier,
       password: authChallenge.tempPassword,
@@ -212,9 +207,7 @@ export class AuthService {
     this.validateAttempts(authChallenge, now);
 
     const otpCode = generateOTP();
-    this.mailService
-      .sendOtpEmail(authChallenge.identifier, otpCode)
-      .catch(console.error);
+    await this.mailService.sendOtpEmail(authChallenge.identifier, otpCode);
 
     const hashedOTP = await hashBcrypt(otpCode);
 
@@ -229,18 +222,13 @@ export class AuthService {
     const authToken = generateSecureToken(16);
 
     const currentUser = await this.userRepo.findByEmail(email);
-    if (!currentUser) {
+    if (!currentUser || !currentUser.isActiveUser()) {
       return authToken;
-    }
-
-    if (!currentUser.isActiveUser()) {
-      throw new BadRequestException('User is inactive!');
     }
 
     await this.validateEmailAttempts(email, ChallengeType.FORGOT_PASSWORD);
 
     const otpCode = generateOTP();
-    console.log(`[EMAIL] Send Forgot Password OTP to ${email}: ${otpCode}`);
 
     await this.mailService.sendForgotPasswordEmail(email, otpCode);
 
@@ -443,13 +431,6 @@ export class AuthService {
   }
 
   async metaMaskChallenge(walletAddress: string) {
-    const existUser = await this.userRepo.findByWalletAddress(walletAddress);
-    if (!existUser) {
-      throw new BadRequestException(
-        'Wallet is not linked to any active account!',
-      );
-    }
-
     const nonce = generateSecureToken(16);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + getMetaMaskChallengeMs());
@@ -674,7 +655,7 @@ export class AuthService {
 
   private async checkUserNotExists(email: string): Promise<void> {
     const user = await this.userRepo.findByEmail(email);
-    if (user?.isActiveUser()) {
+    if (user) {
       throw new ConflictException('User already exists!');
     }
   }

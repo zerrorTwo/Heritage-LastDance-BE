@@ -28,6 +28,7 @@ import { KnowledgeTestModule } from './modules/knowledge-test/module';
 import { ChatGatewayModule } from './gateways/chat-gateway.module';
 import { RagModule } from './modules/rag/module';
 import { MindMapModule } from './modules/mind-map/module';
+import { BattleTimelineModule } from './modules/battle-timeline/module';
 import { dbConfig } from './config/database';
 import loadEnv from './config/configuration';
 
@@ -87,6 +88,7 @@ const env = loadEnv();
     ChatGatewayModule,
     RagModule,
     MindMapModule,
+    BattleTimelineModule,
   ],
   providers: [
     {

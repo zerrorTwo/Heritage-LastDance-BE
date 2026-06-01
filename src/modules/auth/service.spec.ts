@@ -408,16 +408,22 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw ConflictException when user already exists', async () => {
+    it('should create user when OTP is valid', async () => {
       const mockChallenge = createMockAuthChallenge();
       (md5 as jest.Mock).mockReturnValue('some-hash');
       mockAuthRepo.getByAuthToken.mockResolvedValue(mockChallenge);
       (compareBcrypt as jest.Mock).mockResolvedValue(true);
-      mockUserRepo.findByEmail.mockResolvedValue(createMockUser());
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+      mockUserRepo.create.mockResolvedValue(createMockUser());
+      mockSessionRepo.create.mockResolvedValue(
+        createMockSession({ id: 'session-123', userId: 'user-123' }),
+      );
 
-      await expect(
-        service.verifyOTP(token, otpCode, ipAddress),
-      ).rejects.toThrow(ConflictException);
+      const result = await service.verifyOTP(token, otpCode, ipAddress);
+
+      expect(result).toHaveProperty('accessToken');
+      expect(result).toHaveProperty('refreshToken');
+      expect(result).toHaveProperty('sessionId');
     });
   });
 
@@ -533,11 +539,15 @@ describe('AuthService', () => {
       expect(mockMailService.sendForgotPasswordEmail).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException when user is inactive', async () => {
+    it('should return auth token silently when user is inactive', async () => {
       const mockUser = createMockUser({ isActiveUser: jest.fn().mockReturnValue(false) });
       mockUserRepo.findByEmail.mockResolvedValue(mockUser);
+      (generateSecureToken as jest.Mock).mockReturnValue('silent-token');
 
-      await expect(service.forgotPassword(email)).rejects.toThrow(BadRequestException);
+      const result = await service.forgotPassword(email);
+
+      expect(result).toBe('silent-token');
+      expect(mockMailService.sendForgotPasswordEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -810,12 +820,17 @@ describe('AuthService', () => {
       expect(result.message).toContain('challenge-nonce');
     });
 
-    it('should throw BadRequestException when wallet not linked', async () => {
+    it('should create challenge even when wallet not linked yet', async () => {
       mockUserRepo.findByWalletAddress.mockResolvedValue(null);
+      (generateSecureToken as jest.Mock).mockReturnValue('challenge-nonce');
+      mockAuthRepo.upsert.mockResolvedValue(createMockAuthChallenge());
 
-      await expect(service.metaMaskChallenge(walletAddress)).rejects.toThrow(
-        BadRequestException,
-      );
+      const result = await service.metaMaskChallenge(walletAddress);
+
+      expect(result).toHaveProperty('message');
+      expect(result).toHaveProperty('expiresAt');
+      expect(result.message).toContain(walletAddress);
+      expect(result.message).toContain('challenge-nonce');
     });
   });
 

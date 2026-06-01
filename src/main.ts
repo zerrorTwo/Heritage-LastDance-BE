@@ -9,6 +9,8 @@ import compression from 'compression';
 import { AppModule } from './app.module';
 import initSwagger from './config/innit-swagger';
 import { getDynamicCorsConfig } from './config/cors.config';
+import { GlobalExceptionFilter } from './filters/global-exception.filter';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 const GLOBAL_PREFIX = 'api';
 
@@ -18,7 +20,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix(GLOBAL_PREFIX);
 
-  app.getHttpAdapter().getInstance().set('trust proxy', 'loopback');
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   app.use(helmet.default() as any);
   app.use(compression());
@@ -36,6 +38,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalInterceptors(new ResponseInterceptor());
 
   app.enableShutdownHooks();
 

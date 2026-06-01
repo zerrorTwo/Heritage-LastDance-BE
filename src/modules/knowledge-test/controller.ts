@@ -126,6 +126,19 @@ export class KnowledgeTestController {
     return Response.OK(result);
   }
 
+  @Get('my-points')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get current user points from heritage knowledge quizzes' })
+  @ApiResponse({
+    status: 200,
+    description: 'Point summary calculated from the best score of each completed knowledge test',
+  })
+  async getMyPoints(@CurrentUser() user: JwtPayload) {
+    const result = await this.testService.getMyPoints(user.sub);
+    return Response.OK(result);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get test detail (with questions + options)' })
   @ApiParam({ name: 'id' })

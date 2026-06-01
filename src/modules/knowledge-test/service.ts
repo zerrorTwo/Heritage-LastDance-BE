@@ -217,6 +217,10 @@ export class KnowledgeTestService {
     };
   }
 
+  async getMyPoints(userId: string) {
+    return this.attemptRepo.getUserPointSummary(userId);
+  }
+
   async getLeaderboard(testId: string) {
     const test = await this.testRepo.findById(testId);
     if (!test) throw new NotFoundException('Không tìm thấy bài kiểm tra');
