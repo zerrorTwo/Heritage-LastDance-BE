@@ -53,11 +53,9 @@ export class HeritageRepository {
             order: { eventDate: 'ASC' },
           })
         : Promise.resolve([] as HeritageTimeline[]),
-      options.includeDetail
-        ? this.repo.manager.getRepository(HeritageTranslation).find({
-            where: { heritageId: In(ids) },
-          })
-        : Promise.resolve([] as HeritageTranslation[]),
+      this.repo.manager.getRepository(HeritageTranslation).find({
+        where: { heritageId: In(ids) },
+      }),
     ]);
 
     const groupByHeritageId = <T extends { heritageId: string }>(rows: T[]) =>
@@ -79,9 +77,9 @@ export class HeritageRepository {
       ...(options.includeDetail
         ? {
             timelines: timelinesByHeritage[item.id] || [],
-            translations: translationsByHeritage[item.id] || [],
           }
         : {}),
+      translations: translationsByHeritage[item.id] || [],
     }));
   }
 
