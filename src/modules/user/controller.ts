@@ -19,6 +19,7 @@ import { UserService } from './service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AdminUpdateUserDto, UpdateUserDto } from './dto/update-user.dto';
 import { UserProfileDto } from './dto/user-response.dto';
+import { AuthenticatedRequest } from '../../common/decorators/current-user.decorator';
 import { Response, GeneralResponse } from '../../common/response';
 import { AdminGuard } from '../../common/guards/admin.guard';
 import { CloudinaryProvider } from '../../providers/cloudinary.provider';
@@ -50,8 +51,8 @@ export class UserController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
-  async getCurrentUser(@Req() req: any) {
-    const user = await this.userService.getUserById(req.user.userId);
+  async getCurrentUser(@Req() req: AuthenticatedRequest) {
+    const user = await this.userService.getUserById(req.user.userId!);
     return Response.OK(user);
   }
 
@@ -73,8 +74,8 @@ export class UserController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input data' })
-  async updateCurrentUser(@Body() dto: UpdateUserDto, @Req() req: any) {
-    const user = await this.userService.updateUser(req.user.userId, dto);
+  async updateCurrentUser(@Body() dto: UpdateUserDto, @Req() req: AuthenticatedRequest) {
+    const user = await this.userService.updateUser(req.user.userId!, dto);
     return Response.OK(user);
   }
 
@@ -84,7 +85,7 @@ export class UserController {
     summary: 'List users',
     description: 'Admin endpoint for user management with search, role filter, sorting, and pagination.',
   })
-  async getAllUsers(@Query() query: Record<string, any>) {
+  async getAllUsers(@Query() query: Record<string, unknown>) {
     return this.userService.getAllUsers(query);
   }
 

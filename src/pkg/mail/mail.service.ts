@@ -161,10 +161,10 @@ export class MailService {
       let template = readFileSync(templatePath, 'utf8');
 
       // Replace template variables with data
-      Object.keys(defaultData).forEach((key) => {
+      for (const [key, value] of Object.entries(defaultData)) {
         const regex = new RegExp(`{{${key}}}`, 'g');
-        template = template.replace(regex, String((defaultData as any)[key]));
-      });
+        template = template.replace(regex, String(value));
+      }
 
       return template;
     } catch (error) {

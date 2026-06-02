@@ -36,6 +36,7 @@ import {
   VerifyLinkWalletDto,
 } from './dto/meta-mask.dto';
 import { Response, GeneralResponse } from '../../common/response';
+import { AuthenticatedRequest } from '../../common/decorators/current-user.decorator';
 import {
   UserProfileDto,
   AuthResponseDto,
@@ -96,12 +97,12 @@ export class AuthController {
       ],
     },
   })
-  async signIn(@Body() dto: SignInDto, @Req() req: any) {
+  async signIn(@Body() dto: SignInDto, @Req() req: AuthenticatedRequest) {
     const result = await this.authService.signIn(
       dto.email,
       dto.password,
-      req.ip,
-      req.headers['user-agent'],
+      req.ip!,
+      req.headers['user-agent'] as string | undefined,
     );
     return Response.OK(result);
   }
@@ -120,12 +121,12 @@ export class AuthController {
       ],
     },
   })
-  async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: any) {
+  async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: AuthenticatedRequest) {
     const result = await this.authService.verifyOTP(
       dto.token,
       dto.otpCode,
-      req.ip,
-      req.headers['user-agent'],
+      req.ip!,
+      req.headers['user-agent'] as string | undefined,
     );
     return Response.OK(result);
   }
@@ -192,12 +193,12 @@ export class AuthController {
       ],
     },
   })
-  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: any) {
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: AuthenticatedRequest) {
     const result = await this.authService.resetPassword(
       dto.token,
       dto.newPassword,
-      req.ip,
-      req.headers['user-agent'],
+      req.ip!,
+      req.headers['user-agent'] as string | undefined,
     );
     return Response.OK(result);
   }
@@ -208,13 +209,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Change password', description: 'Change password for authenticated user. Requires JWT token.' })
   @ApiBody({ type: ChangePasswordDto })
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
-  async changePassword(@Body() dto: ChangePasswordDto, @Req() req: any) {
+  async changePassword(@Body() dto: ChangePasswordDto, @Req() req: AuthenticatedRequest) {
     await this.authService.changePassword(
-      req.user.userId,
+      req.user.userId!,
       req.user.sessionId,
       dto.oldPassword,
       dto.newPassword,
-      req.ip,
+      req.ip!,
     );
     return Response.OK({ message: 'Password changed successfully' });
   }
@@ -246,7 +247,7 @@ export class AuthController {
     description: 'Logout and revoke session. Requires JWT token.',
   })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Req() req: any) {
+  async logout(@Req() req: AuthenticatedRequest) {
     await this.authService.logout(req.user.sessionId);
     return Response.OK({ message: 'Logged out successfully' });
   }
@@ -283,13 +284,13 @@ export class AuthController {
       ],
     },
   })
-  async metaMaskSignIn(@Body() dto: MetaMaskSignInDto, @Req() req: any) {
+  async metaMaskSignIn(@Body() dto: MetaMaskSignInDto, @Req() req: AuthenticatedRequest) {
     const result = await this.authService.metaMaskSignIn(
       dto.walletAddress,
       dto.message,
       dto.signature,
-      req.ip,
-      req.headers['user-agent'],
+      req.ip!,
+      req.headers['user-agent'] as string | undefined,
     );
     return Response.OK(result);
   }
@@ -311,8 +312,8 @@ export class AuthController {
       ],
     },
   })
-  async linkWallet(@Body() dto: LinkWalletDto, @Req() req: any) {
-    const result = await this.authService.linkWallet(req.user.userId, dto.walletAddress);
+  async linkWallet(@Body() dto: LinkWalletDto, @Req() req: AuthenticatedRequest) {
+    const result = await this.authService.linkWallet(req.user.userId!, dto.walletAddress);
     return Response.Created(result);
   }
 
@@ -322,8 +323,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Verify wallet link', description: 'Verify MetaMask wallet link. Requires JWT token.' })
   @ApiBody({ type: VerifyLinkWalletDto })
   @ApiResponse({ status: 200, description: 'Wallet linked successfully' })
-  async verifyLinkWallet(@Body() dto: VerifyLinkWalletDto, @Req() req: any) {
-    await this.authService.verifyLinkWallet(req.user.userId, dto.message, dto.signature);
+  async verifyLinkWallet(@Body() dto: VerifyLinkWalletDto, @Req() req: AuthenticatedRequest) {
+    await this.authService.verifyLinkWallet(req.user.userId!, dto.message, dto.signature);
     return Response.OK({ message: 'Wallet linked successfully' });
   }
 
@@ -348,11 +349,12 @@ export class AuthController {
       ],
     },
   })
-  async googleCallback(@Req() req: any) {
+  async googleCallback(@Req() req: AuthenticatedRequest) {
+    const googleUser = req.user as unknown as { googleId: string; email: string; firstName: string; lastName: string };
     const result = await this.authService.googleLogin(
-      req.user,
-      req.ip,
-      req.headers['user-agent'],
+      googleUser,
+      req.ip!,
+      req.headers['user-agent'] as string | undefined,
     );
     return Response.OK(result);
   }

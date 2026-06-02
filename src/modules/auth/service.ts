@@ -20,7 +20,7 @@ import {
   generateRefreshToken,
 } from '../../utils/random/token.util';
 import { recoverWalletAddress } from '../../utils/wallet/wallet.util';
-import { ChallengeType, IdentifierType } from './model';
+import { AuthChallengeModel, ChallengeType, IdentifierType, PasswordResetModel } from './model';
 import { AuditAction } from '../audit-log/model';
 import { UserModel } from '../user/model';
 
@@ -660,7 +660,7 @@ export class AuthService {
     }
   }
 
-  private validateAttempts(authChallenge: any, now: Date): void {
+  private validateAttempts(authChallenge: AuthChallengeModel, now: Date): void {
     const elapsed = now.getTime() - new Date(authChallenge.createdAt).getTime();
 
     if (
@@ -680,7 +680,7 @@ export class AuthService {
 
   private async validateEmailAttempts(
     email: string,
-    challengeType: string,
+    challengeType: ChallengeType,
   ): Promise<void> {
     const count = await this.authRepo.countByIdentifierAndChallengeType(
       email,
@@ -694,7 +694,7 @@ export class AuthService {
     }
   }
 
-  private async getValidAuthChallenge(token: string, now: Date): Promise<any> {
+  private async getValidAuthChallenge(token: string, now: Date): Promise<AuthChallengeModel> {
     const hash = md5(token);
     const authChallenge = await this.authRepo.getByAuthToken(hash);
 
@@ -714,7 +714,7 @@ export class AuthService {
     return authChallenge;
   }
 
-  private async getValidPasswordReset(resetToken: string): Promise<any> {
+  private async getValidPasswordReset(resetToken: string): Promise<PasswordResetModel> {
     const hash = md5(resetToken);
     const passwordReset = await this.authRepo.getPasswordReset(hash);
 
@@ -777,7 +777,7 @@ export class AuthService {
     return { walletAddress, nonce };
   }
 
-  private async createOrGetWalletUser(walletAddress: string): Promise<any> {
+  private async createOrGetWalletUser(walletAddress: string): Promise<UserModel> {
     const existUser = await this.userRepo.findByWalletAddress(walletAddress);
     if (existUser) {
       if (!existUser.isActiveUser())
@@ -787,9 +787,10 @@ export class AuthService {
 
     try {
       return await this.userRepo.create({ walletAddress });
-    } catch (err: any) {
-      if (err?.code === '23505') {
-        return this.userRepo.findByWalletAddress(walletAddress);
+    } catch (err) {
+      if ((err as { code?: string })?.code === '23505') {
+        const existing = await this.userRepo.findByWalletAddress(walletAddress);
+        if (existing) return existing;
       }
       throw err;
     }

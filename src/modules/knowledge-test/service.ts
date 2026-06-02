@@ -21,6 +21,7 @@ import {
   UpdateQuestionDto,
 } from './dto/knowledge-test.dto';
 import { LeaderboardService } from '../leaderboard/service';
+import { KnowledgeTestOptionModel } from './model';
 
 @Injectable()
 export class KnowledgeTestService {
@@ -104,7 +105,7 @@ export class KnowledgeTestService {
       optionsByQuestion.set(opt.questionId, arr);
     }
 
-    const stripOption = (opt: any) => {
+    const stripOption = (opt: KnowledgeTestOptionModel) => {
       const { isCorrect, ...rest } = opt;
       return rest;
     };
@@ -207,8 +208,8 @@ export class KnowledgeTestService {
       userId,
       score: finalScore,
       displayName: userName ?? undefined,
-      completedAt: new Date(),
-    } as any);
+      completedAt: new Date().toISOString(),
+    });
 
     return {
       score: finalScore,

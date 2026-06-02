@@ -62,3 +62,19 @@ export interface CreateDiscussData {
   userId: string;
   content: string;
 }
+
+export interface DiscussWithUser {
+  id: string;
+  heritageId: string;
+  parentId: string | null;
+  userId: string;
+  content: string;
+  commentLeft: number;
+  commentRight: number;
+  createdAt: Date;
+  user: {
+    id: string;
+    displayName: string;
+    avatar: string;
+  };
+}

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DiscussRepository } from './repository';
 import { CreateDiscussDto } from './dto/discuss.dto';
+import { DiscussWithUser } from './model';
 
 @Injectable()
 export class DiscussService {
@@ -23,15 +24,11 @@ export class DiscussService {
   }
 
   /** Lấy danh sách thảo luận theo parentId + heritageId */
-  async getByParentId(parentId: string | undefined, heritageId: string) {
+  async getByParentId(parentId: string | undefined, heritageId: string): Promise<DiscussWithUser[]> {
     const items = await this.discussRepo.getByParentId(
       parentId ?? null,
       heritageId,
     );
-
-    if (!items) {
-      throw new NotFoundException('Discusses not found');
-    }
 
     return items;
   }

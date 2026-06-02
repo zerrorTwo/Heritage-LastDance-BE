@@ -91,7 +91,7 @@ export interface IAuthChallengeRepository {
   getByIdentifier(identifier: string): Promise<AuthChallengeModel | null>;
   countByIdentifierAndChallengeType(
     identifier: string,
-    challengeType: string,
+    challengeType: ChallengeType,
   ): Promise<number>;
   deleteExpiredChallenges(): Promise<void>;
   createPasswordReset(data: {

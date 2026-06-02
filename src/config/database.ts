@@ -66,10 +66,11 @@ class SnakeNamingStrategy
 }
 
 const baseDbConfig = (): DataSourceOptions => {
-  const env = loadEnv();
-  console.log('ENV loaded:', JSON.stringify(env, null, 2)); // ← thêm dòng này
-  const host = env.DATABASE_HOST || env.HOST || 'localhost';
-  const type = env.DATABASE_TYPE || 'postgres';
+  const env = loadEnv() as Record<string, string | undefined>;
+  console.log('ENV loaded:', JSON.stringify(env, null, 2));
+  const host: string = env.DATABASE_HOST || env.HOST || 'localhost';
+  const rawType: string = env.DATABASE_TYPE || 'postgres';
+  const type = rawType as 'postgres' | 'mysql' | 'mariadb' | 'mongodb';
   const port = Number(env.DATABASE_PORT || env.PORT_DB || 5432);
   const isProduction = env.NODE_ENV === 'production';
   const useSsl =

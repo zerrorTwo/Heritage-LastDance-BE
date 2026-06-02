@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary, UploadApiResponse, UploadApiOptions } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import { ConfigService } from '@nestjs/config';
 
@@ -17,9 +17,9 @@ export class CloudinaryProvider {
     file: Express.Multer.File,
     folderName: string = 'avatarHeritage',
     publicId?: string,
-  ): Promise<any> {
+  ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
-      const options: any = { folder: folderName };
+      const options: UploadApiOptions = { folder: folderName };
       if (publicId) {
         options.public_id = publicId;
         options.overwrite = true;
@@ -40,7 +40,7 @@ export class CloudinaryProvider {
     });
   }
 
-  async deleteImage(publicId: string): Promise<any> {
-    return cloudinary.uploader.destroy(publicId);
+  async deleteImage(publicId: string): Promise<{ result: string }> {
+    return cloudinary.uploader.destroy(publicId) as Promise<{ result: string }>;
   }
 }

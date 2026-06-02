@@ -1,7 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { CreateDiscussData, DiscussModel } from './model';
+import { CreateDiscussData, DiscussModel, DiscussWithUser } from './model';
+
+interface DiscussRawRow {
+  d_id?: string;
+  id: string;
+  d_heritageId?: string;
+  heritageId: string;
+  d_parentId?: string;
+  parentId: string | null;
+  d_userId?: string;
+  userId: string;
+  d_content?: string;
+  content: string;
+  d_commentLeft?: number;
+  commentLeft: number;
+  d_commentRight?: number;
+  commentRight: number;
+  d_createdAt?: Date;
+  createdAt: Date;
+  user_id: string;
+  user_displayName: string;
+  user_avatar: string;
+}
 
 @Injectable()
 export class DiscussRepository {
@@ -78,7 +100,7 @@ export class DiscussRepository {
   async getByParentId(
     parentId: string | null,
     heritageId: string,
-  ): Promise<any[]> {
+  ): Promise<DiscussWithUser[]> {
     const qb = this.repo
       .createQueryBuilder('d')
       .select([
@@ -103,7 +125,7 @@ export class DiscussRepository {
       qb.andWhere('d.parentId IS NULL');
     }
 
-    const rows = await qb.getRawMany();
+    const rows: DiscussRawRow[] = await qb.getRawMany();
 
     return rows.map((row) => ({
       id: row['d_id'] ?? row['id'],

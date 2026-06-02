@@ -72,8 +72,8 @@ export class CommentService {
     const comment = await this.commentRepo.create({
       heritageId: dto.heritageId,
       userId,
-      displayName: (user as any).displayName ?? (user as any).displayname ?? null,
-      avatar: (user as any).avatar ?? null,
+      displayName: user.displayname ?? null,
+      avatar: user.avatar,
       content: dto.content,
       images: dto.images ?? [],
       rating: dto.rating ?? null,
@@ -132,7 +132,7 @@ export class CommentService {
   // ---- Helpers ----
   private parseLikes(raw: string): string[] {
     try {
-      return JSON.parse(raw ?? '[]');
+      return JSON.parse(raw ?? '[]') as string[];
     } catch {
       return [];
     }
@@ -140,7 +140,7 @@ export class CommentService {
 
   private parseImages(raw: string): string[] {
     try {
-      return JSON.parse(raw ?? '[]');
+      return JSON.parse(raw ?? '[]') as string[];
     } catch {
       return [];
     }

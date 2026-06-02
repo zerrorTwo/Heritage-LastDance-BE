@@ -27,6 +27,7 @@ import {
 import { CommentService } from './service';
 import { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../common/decorators/current-user.decorator';
 import { GeneralResponse, Response } from '../../common/response';
 import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
@@ -48,7 +49,7 @@ export class CommentController {
   @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'heritageId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Danh sách bình luận' })
-  async getAll(@Query() query: Record<string, any>) {
+  async getAll(@Query() query: Record<string, unknown>) {
     const result = await this.commentService.getAll(query);
     return Response.OK(result);
   }
@@ -91,7 +92,7 @@ export class CommentController {
   async createNew(
     @Body() dto: CreateCommentDto,
     @UploadedFiles() files: Express.Multer.File[],
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     if (files?.length) {
       const uploaded = await Promise.all(
@@ -101,7 +102,7 @@ export class CommentController {
       );
       dto.images = uploaded.map((u) => u.secure_url);
     }
-    const result = await this.commentService.createNew(dto, req.user.userId);
+    const result = await this.commentService.createNew(dto, req.user.userId!);
     return Response.Created(result);
   }
 
@@ -114,9 +115,9 @@ export class CommentController {
   async updateComment(
     @Param('id') id: string,
     @Body() dto: UpdateCommentDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
-    const result = await this.commentService.updateComment(id, dto, req.user.userId);
+    const result = await this.commentService.updateComment(id, dto, req.user.userId!);
     return Response.OK(result);
   }
 
@@ -126,8 +127,8 @@ export class CommentController {
   @ApiOperation({ summary: 'Xóa bình luận (chỉ người tạo)' })
   @ApiResponse({ status: 200, description: 'Bình luận đã được xóa' })
   @ApiResponse({ status: 403, description: 'Không có quyền xóa' })
-  async deleteComment(@Param('id') id: string, @Req() req: any) {
-    const result = await this.commentService.deleteComment(id, req.user.userId);
+  async deleteComment(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const result = await this.commentService.deleteComment(id, req.user.userId!);
     return Response.OK(result);
   }
 
@@ -136,8 +137,8 @@ export class CommentController {
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Toggle like bình luận' })
   @ApiResponse({ status: 200, description: 'Kết quả like/unlike' })
-  async likeComment(@Param('id') id: string, @Req() req: any) {
-    const result = await this.commentService.likeComment(id, req.user.userId);
+  async likeComment(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const result = await this.commentService.likeComment(id, req.user.userId!);
     return Response.OK(result);
   }
 }

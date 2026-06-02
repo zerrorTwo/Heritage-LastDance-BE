@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from '../../common/response';
+import { AuthenticatedRequest } from '../../common/decorators/current-user.decorator';
 import {
   ExtractBattleDocumentDto,
   GenerateBattleTimelineDto,
@@ -36,7 +37,7 @@ export class BattleTimelineController {
   @Post('generate')
   @ApiOperation({ summary: 'Generate and save a BattleTimeline JSON from battle text' })
   @ApiResponse({ status: 201, description: 'Battle timeline generated successfully' })
-  async generate(@Body() dto: GenerateBattleTimelineDto, @Req() req: any) {
+  async generate(@Body() dto: GenerateBattleTimelineDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.userId ?? req.user?.sub ?? null;
     return Response.Created(await this.battleTimelineService.generate(dto, userId));
   }
@@ -109,7 +110,7 @@ export class BattleTimelineAliasController {
   @ApiOperation({
     summary: 'Alias for P1 battle generation from be_battle_timeline.md',
   })
-  async generate(@Body() dto: GenerateBattleTimelineDto, @Req() req: any) {
+  async generate(@Body() dto: GenerateBattleTimelineDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.userId ?? req.user?.sub ?? null;
     return Response.Created(await this.battleTimelineService.generate(dto, userId));
   }

@@ -28,7 +28,7 @@ export class FavoriteRepository {
     const skip = (page - 1) * limit;
 
     const [results, total] = await this.repo.findAndCount({
-      order: { [sort]: order } as any,
+      order: { [sort]: order } as Record<string, 'ASC' | 'DESC'>,
       skip,
       take: limit,
     });
@@ -56,7 +56,7 @@ export class FavoriteRepository {
   // Helper: parse items từ JSON string
   parseItems(raw: string): FavoriteItem[] {
     try {
-      return JSON.parse(raw ?? '[]');
+      return JSON.parse(raw ?? '[]') as FavoriteItem[];
     } catch {
       return [];
     }

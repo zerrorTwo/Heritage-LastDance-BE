@@ -66,7 +66,7 @@ export class FavoriteService {
       .map((item) => item.heritageId)
       .filter(Boolean);
 
-    const heritageMap = new Map<string, any>();
+    const heritageMap = new Map<string, object>();
     if (heritageIds.length > 0) {
       const heritages = await this.heritageRepo.findByIds(heritageIds);
       for (const h of heritages) {

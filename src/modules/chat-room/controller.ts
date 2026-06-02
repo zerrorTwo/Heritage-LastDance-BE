@@ -26,7 +26,7 @@ import {
   SendDirectMessageDto,
 } from './dto/chat-room.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { AuthenticatedRequest, CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { Response } from '../../common/response';
 
 @ApiTags('Chat Rooms')
@@ -52,10 +52,10 @@ export class ChatRoomController {
   async joinRoom(
     @Param('roomId') roomId: string,
     @Body() dto: JoinRoomDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     // Đảm bảo userId là của người đang request
-    dto.userId = req.user.userId;
+    dto.userId = req.user.userId!;
     const result = await this.chatRoomService.joinRoom(roomId, dto);
     return Response.OK(result);
   }
@@ -65,8 +65,8 @@ export class ChatRoomController {
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Rời phòng chat' })
   @ApiResponse({ status: 200, description: 'Rời phòng chat thành công' })
-  async leaveRoom(@Param('roomId') roomId: string, @Req() req: any) {
-    const result = await this.chatRoomService.leaveRoom(roomId, req.user.userId);
+  async leaveRoom(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+    const result = await this.chatRoomService.leaveRoom(roomId, req.user.userId!);
     return Response.OK(result);
   }
 
@@ -75,8 +75,8 @@ export class ChatRoomController {
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Gửi tin nhắn mới' })
   @ApiResponse({ status: 201, description: 'Gửi tin nhắn thành công' })
-  async saveMessage(@Body() dto: SaveMessageDto, @Req() req: any) {
-    dto.userId = req.user.userId;
+  async saveMessage(@Body() dto: SaveMessageDto, @Req() req: AuthenticatedRequest) {
+    dto.userId = req.user.userId!;
     const result = await this.chatRoomService.saveMessage(dto);
     return Response.Created(result);
   }

@@ -52,7 +52,7 @@ export class ChatRoomRepository {
     const { page, limit, sort, order } = opts;
     const skip = (page - 1) * limit;
     const [results, total] = await this.repo.findAndCount({
-      order: { [sort]: order } as any,
+      order: { [sort]: order } as Record<string, 'ASC' | 'DESC'>,
       skip,
       take: limit,
     });
@@ -108,7 +108,7 @@ export class ChatRoomRepository {
 
   parseParticipants(raw: string): string[] {
     try {
-      return JSON.parse(raw ?? '[]');
+      return JSON.parse(raw ?? '[]') as string[];
     } catch {
       return [];
     }
