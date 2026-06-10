@@ -94,6 +94,22 @@ export class GamificationService {
     return p;
   }
 
+  /** Cộng XP cho user (dùng bởi tính năng Hành trình). Tự lên cấp theo XP. */
+  async awardXp(userId: string, amount: number) {
+    if (!userId || !amount || amount <= 0) return null;
+    const progress = await this.getOrCreate(userId);
+    const prevLevel = progress.level;
+    progress.xp += amount;
+    progress.level = this.levelFromXp(progress.xp);
+    await this.progressRepo.save(progress);
+    return {
+      awarded: amount,
+      xp: progress.xp,
+      level: progress.level,
+      leveledUp: progress.level > prevLevel,
+    };
+  }
+
   private decorate(p: UserProgressModel, extra: Record<string, any> = {}) {
     const level = p.level;
     const curBase = this.xpForLevel(level);

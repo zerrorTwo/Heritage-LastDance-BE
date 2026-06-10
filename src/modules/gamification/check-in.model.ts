@@ -62,6 +62,10 @@ export class CheckInModel {
   @Column({ type: 'int', default: 0 })
   xpAwarded!: number;
 
+  // Nếu check-in này nằm trên một hành trình (trip).
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  tripId!: string | null;
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 }

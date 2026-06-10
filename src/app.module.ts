@@ -31,6 +31,7 @@ import { MindMapModule } from './modules/mind-map/module';
 import { GraphModule } from './modules/graph/module';
 import { GamificationModule } from './modules/gamification/module';
 import { FriendModule } from './modules/friend/module';
+import { TripModule } from './modules/trip/module';
 import { dbConfig } from './config/database';
 import loadEnv from './config/configuration';
 
@@ -93,6 +94,7 @@ const env = loadEnv();
     GraphModule,
     GamificationModule,
     FriendModule,
+    TripModule,
   ],
   providers: [
     {
