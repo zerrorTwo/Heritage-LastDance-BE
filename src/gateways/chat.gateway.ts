@@ -107,7 +107,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    data: { roomId: string; message: { content: string; userId: string; username: string } },
+    data: {
+      roomId: string;
+      message: {
+        content: string;
+        userId: string;
+        username: string;
+        type?: MessageType;
+        avatarUrl?: string;
+        imageUrl?: string;
+      };
+    },
   ) {
     const { roomId, message } = data;
     if (!message?.content?.trim()) return;
@@ -120,8 +130,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId: heritageId,
         userId: message.userId,
         content: message.content,
-        type: MessageType.TEXT,
+        type: message.type ?? MessageType.TEXT,
         username: message.username,
+        avatarUrl: message.avatarUrl,
+        imageUrl: message.imageUrl,
       });
 
       this.server.to(roomId).emit('new-message', {
@@ -163,6 +175,39 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('room-messages', { roomId, messages });
   }
 
+  @SubscribeMessage('recall-message')
+  async handleRecallMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: string },
+  ) {
+    const userId = client.data.userId as string;
+    if (!data?.messageId || !userId) return;
+
+    try {
+      // softDeleteMessage chỉ cho phép người gửi thu hồi (kiểm tra trong service)
+      const msg = await this.chatRoomService.softDeleteMessage(
+        data.messageId,
+        userId,
+      );
+      if (!msg) return;
+
+      const payload = {
+        messageId: msg.id,
+        chatRoomId: msg.chatRoomId,
+        status: msg.status,
+        content: msg.content,
+      };
+      // Phát tới cả phòng cộng đồng (heritage_<id>) lẫn phòng DM (<id>) — phòng nào
+      // không có người thì là no-op.
+      this.server.to(`heritage_${msg.chatRoomId}`).emit('message-recalled', payload);
+      this.server.to(msg.chatRoomId).emit('message-recalled', payload);
+    } catch (err) {
+      client.emit('error', {
+        message: err instanceof Error ? err.message : 'Không thể thu hồi tin nhắn',
+      });
+    }
+  }
+
   @SubscribeMessage('join-dm')
   async handleJoinDM(
     @ConnectedSocket() client: Socket,
@@ -178,7 +223,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userData?.username,
       );
       client.join(room.id);
-      client.emit('join-dm', { dmRoomId: room.id });
+      // otherUserId = đối phương của người gọi (userId1) -> client map đúng hội thoại
+      client.emit('join-dm', { dmRoomId: room.id, otherUserId: userId2 });
     } catch (err) {
       client.emit('error', { message: (err as Error).message });
     }
@@ -191,7 +237,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     data: {
       userId: string;
       otherUserId: string;
-      message: { content: string; type?: string; username?: string };
+      message: {
+        content: string;
+        type?: MessageType;
+        username?: string;
+        avatarUrl?: string;
+        imageUrl?: string;
+      };
     },
   ) {
     const { userId, otherUserId, message } = data;
@@ -202,15 +254,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId,
         otherUserId,
         message.content,
-        undefined,
+        message.type,
         message.username,
+        message.avatarUrl,
+        message.imageUrl,
       );
 
-      this.server.to(room.id).emit('new-dm', {
+      const payload = {
         ...saved,
         dmRoomId: room.id,
+        members: [userId, otherUserId],
         username: message.username,
-      });
+      };
+      this.server.to(room.id).emit('new-dm', payload);
+
+      // Đảm bảo người nhận nhận realtime kể cả khi chưa mở hội thoại (chưa join room).
+      const recipientSocketId = this.userSocketMap.get(otherUserId);
+      if (recipientSocketId) {
+        this.server.to(recipientSocketId).emit('new-dm', payload);
+      }
     } catch (err) {
       client.emit('error', { message: (err as Error).message });
     }
@@ -231,6 +293,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       page,
       limit,
     );
-    client.emit('dm-messages', result);
+    // Trả về theo thứ tự tăng dần thời gian + kèm members để client map đúng hội thoại
+    const messages = [...(result.results ?? [])].reverse();
+    client.emit('dm-messages', {
+      ...result,
+      messages,
+      members: [userId1, userId2],
+    });
   }
 }

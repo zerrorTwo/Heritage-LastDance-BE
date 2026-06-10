@@ -114,11 +114,33 @@ export class HeritageRepository {
     if (filter?.type) {
       query.andWhere('heritage.type = :type', { type: filter.type });
     }
-    if (filter?.name) {
-      query.andWhere('heritage.title ILIKE :name', { name: `%${filter.name}%` });
+
+    // Fuzzy search: diacritic-insensitive substring OR trigram similarity.
+    // "bach dang" -> "Bạch Đằng", "dien bien" (typo) -> "Điện Biên".
+    const searchTerm = filter?.name?.trim().replace(/\s+/g, ' ');
+    if (searchTerm) {
+      query.andWhere(
+        `(
+          f_unaccent(lower(heritage.title)) LIKE '%' || f_unaccent(lower(:term)) || '%'
+          OR f_unaccent(lower(coalesce(heritage.alternative_names::text, ''))) LIKE '%' || f_unaccent(lower(:term)) || '%'
+          OR similarity(f_unaccent(lower(heritage.title)), f_unaccent(lower(:term))) > :simThreshold
+        )`,
+        { term: searchTerm, simThreshold: 0.2 },
+      );
     }
 
-    if (filter?.sort) {
+    if (searchTerm) {
+      // Rank: exact substring matches first, then by trigram similarity.
+      query
+        .orderBy(
+          `(f_unaccent(lower(heritage.title)) LIKE '%' || f_unaccent(lower(:term)) || '%')`,
+          'DESC',
+        )
+        .addOrderBy(
+          `similarity(f_unaccent(lower(heritage.title)), f_unaccent(lower(:term)))`,
+          'DESC',
+        );
+    } else if (filter?.sort) {
       const order = filter.order || 'ASC';
       query.orderBy(`heritage.${filter.sort}`, order);
     } else {

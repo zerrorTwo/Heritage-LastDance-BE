@@ -134,15 +134,28 @@ export class MessageModel {
   @Column({ type: 'text' })
   content!: string;
 
+  /** Tên hiển thị người gửi (snapshot lúc gửi -> lịch sử luôn đúng tên dù user offline) */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  username!: string | null;
+
+  /** Avatar người gửi (snapshot lúc gửi) */
+  @Column({ type: 'text', nullable: true })
+  avatarUrl!: string | null;
+
+  /** URL ảnh đính kèm (Cloudinary) khi type = IMAGE */
+  @Column({ type: 'text', nullable: true })
+  imageUrl!: string | null;
+
   @Column({ type: 'enum', enum: MessageType, default: MessageType.TEXT })
   type!: MessageType;
 
   @Column({ type: 'enum', enum: MessageStatus, default: MessageStatus.SENT })
   status!: MessageStatus;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  // timestamptz: lưu mốc thời gian tuyệt đối (UTC) -> FE hiển thị đúng múi giờ local
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt!: Date;
 }

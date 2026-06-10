@@ -117,6 +117,7 @@ export class AuthService {
     await this.validateEmailAttempts(email, ChallengeType.SIGNUP);
 
     const otpCode = generateOTP();
+    console.log("🚀 ~ AuthService ~ signUp ~ otpCode:", otpCode)
 
     await this.mailService.sendOtpEmail(email, otpCode);
 

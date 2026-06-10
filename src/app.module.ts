@@ -28,6 +28,9 @@ import { KnowledgeTestModule } from './modules/knowledge-test/module';
 import { ChatGatewayModule } from './gateways/chat-gateway.module';
 import { RagModule } from './modules/rag/module';
 import { MindMapModule } from './modules/mind-map/module';
+import { GraphModule } from './modules/graph/module';
+import { GamificationModule } from './modules/gamification/module';
+import { FriendModule } from './modules/friend/module';
 import { dbConfig } from './config/database';
 import loadEnv from './config/configuration';
 
@@ -87,6 +90,9 @@ const env = loadEnv();
     ChatGatewayModule,
     RagModule,
     MindMapModule,
+    GraphModule,
+    GamificationModule,
+    FriendModule,
   ],
   providers: [
     {

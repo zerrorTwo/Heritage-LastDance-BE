@@ -12,6 +12,7 @@ import {
 } from './repository';
 import { ChatRoomService } from './service';
 import { ChatRoomController } from './controller';
+import { FriendModule } from '../friend/module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ChatRoomController } from './controller';
       ChatRoomParticipantModel,
       MessageModel,
     ]),
+    FriendModule,
   ],
   controllers: [ChatRoomController],
   providers: [

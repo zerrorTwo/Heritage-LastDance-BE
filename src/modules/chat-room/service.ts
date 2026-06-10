@@ -11,6 +11,7 @@ import {
 } from './repository';
 import { CreateChatRoomDto, JoinRoomDto, SaveMessageDto } from './dto/chat-room.dto';
 import { ChatRoomType, MessageStatus, MessageType, ParticipantStatus } from './model';
+import { FriendService } from '../friend/service';
 
 @Injectable()
 export class ChatRoomService {
@@ -18,6 +19,7 @@ export class ChatRoomService {
     private readonly chatRoomRepo: ChatRoomRepository,
     private readonly participantRepo: ChatRoomParticipantRepository,
     private readonly messageRepo: MessageRepository,
+    private readonly friendService: FriendService,
   ) {}
 
   async getRoomById(roomId: string) {
@@ -37,11 +39,32 @@ export class ChatRoomService {
     });
   }
 
+  /**
+   * Tìm hoặc TẠO phòng cộng đồng cho một di tích.
+   * Quy ước: id phòng cộng đồng === heritageId (gateway dùng heritageId làm room id).
+   */
+  async ensureHeritageRoom(heritageId: string, name?: string) {
+    const room = await this.chatRoomRepo.findById(heritageId);
+    if (room) return room;
+
+    // Insert ON CONFLICT DO NOTHING: chống race khi 2 người cùng vào lần đầu,
+    // không để DB ném lỗi duplicate key. Luôn trả về phòng (mới tạo hoặc đã có).
+    const created = await this.chatRoomRepo.createIfNotExists({
+      id: heritageId,
+      name: name || 'Phòng cộng đồng di sản',
+      heritageId,
+      type: ChatRoomType.HERITAGE,
+      participants: '[]',
+    });
+    if (!created) throw new NotFoundException('Không thể khởi tạo phòng chat');
+    return created;
+  }
+
   async joinRoom(roomId: string, dto: JoinRoomDto) {
     if (!dto.userId) throw new BadRequestException('Thiếu thông tin người dùng');
 
-    const room = await this.chatRoomRepo.findById(roomId);
-    if (!room) throw new NotFoundException('Phòng chat không tồn tại');
+    // Tự tạo phòng nếu chưa có (lần đầu có người vào di tích này)
+    await this.ensureHeritageRoom(roomId);
 
     const existingParticipant = await this.participantRepo.findByRoomAndUser(
       roomId,
@@ -103,12 +126,15 @@ export class ChatRoomService {
       userId: dto.userId,
       content: dto.content,
       type: dto.type,
+      username: dto.username ?? sender.username,
+      avatarUrl: dto.avatarUrl ?? null,
+      imageUrl: dto.imageUrl ?? null,
     });
 
     await this.chatRoomRepo.updateLastMessage(dto.roomId, {
       content: dto.content,
       userId: dto.userId,
-      username: sender.username,
+      username: dto.username ?? sender.username,
     });
 
     return message;
@@ -116,14 +142,14 @@ export class ChatRoomService {
 
   async getRoomMessages(roomId: string, limit = 50) {
     const room = await this.chatRoomRepo.findById(roomId);
-    if (!room) throw new NotFoundException('Phòng chat không tồn tại');
+    if (!room) return []; // phòng chưa tạo -> chưa có tin nhắn
 
     return this.messageRepo.findByChatRoomId(roomId, limit);
   }
 
   async getRoomUsers(roomId: string) {
     const room = await this.chatRoomRepo.findById(roomId);
-    if (!room) throw new NotFoundException('Phòng chat không tồn tại');
+    if (!room) return []; // phòng chưa tạo -> chưa có ai
 
     return this.participantRepo.findOnlineByRoomId(roomId);
   }
@@ -142,6 +168,12 @@ export class ChatRoomService {
     }
     if (userId1 === userId2) {
       throw new BadRequestException('Không thể tạo DM với chính mình');
+    }
+
+    // Chỉ cho phép nhắn riêng giữa 2 người đã là bạn bè
+    const friends = await this.friendService.areFriends(userId1, userId2);
+    if (!friends) {
+      throw new ForbiddenException('Hai bạn cần là bạn bè để nhắn tin riêng');
     }
 
     let room = await this.chatRoomRepo.findDirectRoom([userId1, userId2]);
@@ -185,6 +217,8 @@ export class ChatRoomService {
     content: string,
     type: MessageType = MessageType.TEXT,
     username?: string,
+    avatarUrl?: string,
+    imageUrl?: string,
   ) {
     if (!content || content.trim() === '') {
       throw new BadRequestException('Nội dung tin nhắn không được để trống');
@@ -202,6 +236,9 @@ export class ChatRoomService {
       content,
       type,
       status: MessageStatus.SENT,
+      username: username ?? null,
+      avatarUrl: avatarUrl ?? null,
+      imageUrl: imageUrl ?? null,
     });
 
     await this.chatRoomRepo.updateLastMessage(room.id, {

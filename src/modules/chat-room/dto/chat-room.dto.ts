@@ -86,6 +86,16 @@ export class SaveMessageDto {
   @IsString()
   @IsOptional()
   username?: string;
+
+  @ApiProperty({ description: 'Avatar người gửi (snapshot)', required: false })
+  @IsString()
+  @IsOptional()
+  avatarUrl?: string;
+
+  @ApiProperty({ description: 'URL ảnh đính kèm (Cloudinary) khi type = IMAGE', required: false })
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
 }
 
 export class FindOrCreateDirectRoomDto {
@@ -125,4 +135,14 @@ export class SendDirectMessageDto {
   @IsString()
   @IsOptional()
   username?: string;
+
+  @ApiProperty({ description: 'Avatar người gửi (snapshot)', required: false })
+  @IsString()
+  @IsOptional()
+  avatarUrl?: string;
+
+  @ApiProperty({ description: 'URL ảnh đính kèm (Cloudinary) khi type = IMAGE', required: false })
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
 }
