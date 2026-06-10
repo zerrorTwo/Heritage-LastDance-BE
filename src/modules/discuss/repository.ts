@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { CreateDiscussData, DiscussModel } from './model';
+import { UserModel } from '../user/model';
 
 @Injectable()
 export class DiscussRepository {
@@ -79,47 +80,41 @@ export class DiscussRepository {
     parentId: string | null,
     heritageId: string,
   ): Promise<any[]> {
-    const qb = this.repo
-      .createQueryBuilder('d')
-      .select([
-        'd.id AS id',
-        'd.heritageId AS heritageId',
-        'd.parentId AS parentId',
-        'd.userId AS userId',
-        'd.content AS content',
-        'd.commentLeft AS commentLeft',
-        'd.commentRight AS commentRight',
-        'd.createdAt AS createdAt',
-      ])
-      .addSelect(['u.id AS user_id', 'u.displayName AS user_displayName', 'u.avatar AS user_avatar'])
-      .leftJoin('users', 'u', 'u.id = d.userId')
-      .where('d.heritageId = :heritageId', { heritageId })
-      .andWhere('d.isDeleted = :isDeleted', { isDeleted: false })
-      .orderBy('d.commentLeft', 'ASC');
-
-    if (parentId) {
-      qb.andWhere('d.parentId = :parentId', { parentId });
-    } else {
-      qb.andWhere('d.parentId IS NULL');
-    }
-
-    const rows = await qb.getRawMany();
-
-    return rows.map((row) => ({
-      id: row['d_id'] ?? row['id'],
-      heritageId: row['d_heritageId'] ?? row['heritageId'],
-      parentId: row['d_parentId'] ?? row['parentId'],
-      userId: row['d_userId'] ?? row['userId'],
-      content: row['d_content'] ?? row['content'],
-      commentLeft: row['d_commentLeft'] ?? row['commentLeft'],
-      commentRight: row['d_commentRight'] ?? row['commentRight'],
-      createdAt: row['d_createdAt'] ?? row['createdAt'],
-      user: {
-        id: row['user_id'],
-        displayName: row['user_displayName'],
-        avatar: row['user_avatar'],
+    // Dùng entity query để TypeORM tự map cột (snake_case) -> tránh lỗi raw alias.
+    const items = await this.repo.find({
+      where: {
+        heritageId,
+        isDeleted: false,
+        parentId: parentId ? parentId : IsNull(),
       },
-    }));
+      order: { commentLeft: 'ASC' },
+    });
+
+    // Nạp thông tin người dùng cho các comment
+    const userIds = [...new Set(items.map((i) => i.userId).filter(Boolean))];
+    const users = userIds.length
+      ? await this.dataSource
+          .getRepository(UserModel)
+          .find({ where: { id: In(userIds) } })
+      : [];
+    const byId = new Map(users.map((u) => [u.id, u]));
+
+    return items.map((d) => {
+      const u = byId.get(d.userId);
+      return {
+        id: d.id,
+        heritageId: d.heritageId,
+        parentId: d.parentId,
+        userId: d.userId,
+        content: d.content,
+        commentLeft: d.commentLeft,
+        commentRight: d.commentRight,
+        createdAt: d.createdAt,
+        user: u
+          ? { id: u.id, displayName: u.displayname, email: u.email, avatar: u.avatar }
+          : null,
+      };
+    });
   }
 
   /**
