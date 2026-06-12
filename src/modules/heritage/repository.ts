@@ -160,6 +160,12 @@ export class HeritageRepository {
     };
   }
 
+  /** All published items (with embedded location/media), unpaginated — for AI backfill. */
+  async findAllPublished(): Promise<HeritageWithEmbeddedData[]> {
+    const items = await this.repo.find({ where: { status: 'published' } });
+    return this.attachEmbeddedData(items);
+  }
+
   async create(data: Partial<HeritageItem>): Promise<HeritageItem> {
     return this.repo.save(data);
   }

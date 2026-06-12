@@ -6,6 +6,7 @@ import {
   buildNeighbors,
   buildOverviewStats,
   buildTimeline,
+  HERITAGE_SLUG_BY_NODE_ID,
   Neighbor,
 } from './dataset.helpers';
 
@@ -53,6 +54,7 @@ export class GraphService {
             lng: this.toNum(p.lng),
             lat: this.toNum(p.lat),
             province: p.province,
+            heritageSlug: HERITAGE_SLUG_BY_NODE_ID.get(p.id),
             summary: p.summary,
             neighbors: (row.neighbors || []).filter(Boolean) as Neighbor[],
           };
@@ -115,6 +117,7 @@ export class GraphService {
                 type: p.type,
                 year: p.year,
                 province: p.province,
+                heritageSlug: HERITAGE_SLUG_BY_NODE_ID.get(p.id),
                 summary: p.summary,
                 mapPoint: !!p.mapPoint,
               };

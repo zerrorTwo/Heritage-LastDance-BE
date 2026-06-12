@@ -2,6 +2,7 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
@@ -66,11 +67,88 @@ type AiQueryResponse = {
   }>;
 };
 
+/** Shape needed to mirror a heritage item into the AI knowledge base. */
+export type HeritageSyncInput = {
+  id: string;
+  slug: string;
+  title: string;
+  status?: string;
+  summary?: string | null;
+  content?: string | null;
+  type?: string | null;
+  history?: string | null;
+  architecture?: string | null;
+  culturalSignificance?: string | null;
+  constructionPeriod?: string | null;
+  founder?: string | null;
+  legends?: string | null;
+  alternativeNames?: string[] | null;
+  sourceUrl?: string | null;
+  // Optional location enrichment (from heritage_locations)
+  address?: string | null;
+  province?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
 @Injectable()
 export class RagService {
+  private readonly logger = new Logger(RagService.name);
   private readonly baseUrl = (process.env.AI_SERVICE_URL || 'http://localhost:5055').replace(/\/$/, '');
   private readonly token = process.env.AI_SERVICE_TOKEN;
   private readonly chatMode = process.env.AI_CHAT_MODE || 'search_only';
+
+  /**
+   * Mirror a published heritage item into the AI wiki knowledge base so the
+   * chatbot stays in sync with the CMS. Fail-soft: never throws — a missing
+   * AI service or token must not break heritage CRUD.
+   */
+  async syncHeritage(item: HeritageSyncInput): Promise<void> {
+    if (!this.token) {
+      this.logger.warn('Skip heritage sync: AI_SERVICE_TOKEN not configured');
+      return;
+    }
+    const payload = {
+      heritageId: item.id,
+      slug: item.slug,
+      title: item.title,
+      summary: item.summary ?? undefined,
+      content: item.content ?? undefined,
+      type: item.type ?? undefined,
+      history: item.history ?? undefined,
+      architecture: item.architecture ?? undefined,
+      culturalSignificance: item.culturalSignificance ?? undefined,
+      constructionPeriod: item.constructionPeriod ?? undefined,
+      founder: item.founder ?? undefined,
+      legends: item.legends ?? undefined,
+      alternativeNames: item.alternativeNames ?? [],
+      address: item.address ?? undefined,
+      province: item.province ?? undefined,
+      latitude: item.latitude ?? undefined,
+      longitude: item.longitude ?? undefined,
+      sourceUrl: item.sourceUrl ?? undefined,
+    };
+    try {
+      const res = await this.requestAi<{ wikiSlug: string; status: string; embedded: boolean }>(
+        '/api/heritage/sync',
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+      );
+      this.logger.log(`Heritage synced -> AI: ${res.wikiSlug} (${res.status}, embedded=${res.embedded})`);
+    } catch (error) {
+      this.logger.warn(`Heritage sync failed for slug=${item.slug}: ${(error as Error).message}`);
+    }
+  }
+
+  /** Remove a heritage item from the AI knowledge base (unpublish/delete). Fail-soft. */
+  async removeHeritage(slug: string): Promise<void> {
+    if (!this.token || !slug) return;
+    try {
+      await this.requestAi(`/api/heritage/sync/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+      this.logger.log(`Heritage removed from AI: di-tich-${slug}`);
+    } catch (error) {
+      this.logger.warn(`Heritage remove failed for slug=${slug}: ${(error as Error).message}`);
+    }
+  }
 
   async importKnowledge(file: Express.Multer.File | undefined, dto: ImportKnowledgeDto) {
     if (!file && !dto.url) {

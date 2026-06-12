@@ -39,6 +39,12 @@ export interface GraphNode {
   province?: string;
   mapPoint?: boolean; // có hiển thị trên bản đồ không
   era?: string; // giai đoạn (vd "Nhà Trần")
+  /**
+   * Slug của trang di tích thật (heritage_items) tương ứng node này — curated thủ công.
+   * Có giá trị → node mở được /heritage/:slug (tất định, không phụ thuộc dò tên).
+   * Bỏ trống → node lịch sử thuần (chỉ tồn tại trên Bản đồ Lịch sử).
+   */
+  heritageSlug?: string;
   summary: string;
 }
 
@@ -463,6 +469,7 @@ export const NODES: GraphNode[] = [
     lng: 106.78,
     province: 'Quảng Ninh – Hải Phòng',
     mapPoint: true,
+    heritageSlug: 'bach-dang',
     summary:
       'Đại thắng kinh điển: Trần Hưng Đạo dùng kế cắm cọc gỗ lợi dụng thuỷ triều, tiêu diệt và bắt sống toàn bộ thuỷ quân Nguyên, bắt Ô Mã Nhi.',
   },
@@ -481,6 +488,7 @@ export const NODES: GraphNode[] = [
     lng: 105.834,
     province: 'Hà Nội',
     mapPoint: true,
+    heritageSlug: 'khu-trung-tam-hoang-thanh-thang-long-ha-noi',
     summary:
       'Kinh đô Đại Việt thời Trần; ba lần bị quân Nguyên chiếm rồi đều được quân dân nhà Trần giải phóng.',
   },
@@ -513,6 +521,7 @@ export const NODES: GraphNode[] = [
     lng: 106.18,
     province: 'Nam Định',
     mapPoint: true,
+    heritageSlug: 'den-tran-va-chua-pho-minh',
     summary:
       'Quê hương và "kinh đô thứ hai" của nhà Trần, nơi các Thái thượng hoàng lui về và là hậu phương vững chắc trong kháng chiến.',
   },
@@ -547,6 +556,7 @@ export const NODES: GraphNode[] = [
     lng: 106.18,
     province: 'Nam Định',
     mapPoint: true,
+    heritageSlug: 'den-tran-va-chua-pho-minh',
     summary:
       'Khu đền thờ 14 vị vua Trần trên đất phát tích Thiên Trường, nổi tiếng với lễ Khai ấn đầu xuân.',
   },
@@ -563,6 +573,7 @@ export const NODES: GraphNode[] = [
     lng: 106.75,
     province: 'Quảng Ninh',
     mapPoint: true,
+    heritageSlug: 'bach-dang',
     summary:
       'Di tích bãi cọc gỗ lim đóng dưới lòng sông trong trận Bạch Đằng 1288, bằng chứng khảo cổ cho chiến thuật thiên tài của Trần Hưng Đạo.',
   },
@@ -579,6 +590,7 @@ export const NODES: GraphNode[] = [
     lng: 105.84,
     province: 'Hà Nội',
     mapPoint: true,
+    heritageSlug: 'khu-trung-tam-hoang-thanh-thang-long-ha-noi',
     summary:
       'Trung tâm quyền lực Đại Việt qua nhiều triều đại trong đó có nhà Trần; Di sản Văn hoá Thế giới UNESCO 2010.',
   },

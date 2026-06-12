@@ -102,11 +102,13 @@ export class TripService {
 
     type Candidate = { id: string; name: string; slug: string | null; lat: number; lng: number };
     const candidates: Candidate[] = [];
+    const graphNodeIds = new Set<string>();
 
-    // 1) Node lịch sử trong dataset graph
+    // 1) Node lịch sử trong dataset graph (slug = curated heritageSlug nếu có)
     for (const n of getAllGeoNodes()) {
       if (n.lat >= minLat && n.lat <= maxLat && n.lng >= minLng && n.lng <= maxLng) {
-        candidates.push({ id: n.id, name: n.name, slug: null, lat: n.lat, lng: n.lng });
+        graphNodeIds.add(n.id);
+        candidates.push({ id: n.id, name: n.name, slug: n.heritageSlug ?? null, lat: n.lat, lng: n.lng });
       }
     }
 
@@ -150,13 +152,20 @@ export class TripService {
       }
     }
 
-    // 4) Node graph (slug=null) -> thử resolve trang heritage thật trùng tên (an toàn bằng substring)
+    // 4) Resolve id heritage thật cho node graph:
+    //    - có curated slug  -> tra id theo slug (tất định)
+    //    - chưa có slug      -> dò trang heritage trùng tên (fuzzy, fallback an toàn)
     for (const m of matched) {
-      if (m.slug) continue;
+      if (!graphNodeIds.has(m.id)) continue; // ứng viên từ DB đã có id+slug thật
+      if (m.slug) {
+        const real = await this.resolveHeritageBySlug(m.slug);
+        if (real) m.id = real.id; // đổi node-id -> id heritage thật để dedup/khớp /heritage/:slug
+        continue;
+      }
       const resolved = await this.resolveHeritageByName(m.name);
       if (resolved) {
         m.slug = resolved.slug;
-        m.id = resolved.id; // dùng id heritage thật để khớp /heritage/:slug
+        m.id = resolved.id;
       }
     }
 
@@ -174,6 +183,20 @@ export class TripService {
       }
     }
     return result;
+  }
+
+  /** Tra id heritage thật theo slug curated (exact). */
+  private async resolveHeritageBySlug(slug: string): Promise<{ id: string; slug: string } | null> {
+    try {
+      const row = await this.heritageRepo
+        .createQueryBuilder('h')
+        .where('h.slug = :slug', { slug })
+        .limit(1)
+        .getOne();
+      return row ? { id: row.id, slug: row.slug } : null;
+    } catch {
+      return null;
+    }
   }
 
   /** Tìm trang heritage thật có tiêu đề CHỨA tên node (an toàn, tránh match nhầm). */

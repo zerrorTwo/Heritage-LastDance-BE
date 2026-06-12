@@ -11,6 +11,11 @@ import { NODES, EDGES, GraphNode } from './seed/tran-dynasty.dataset';
 
 const NODE_BY_ID = new Map(NODES.map((n) => [n.id, n]));
 
+/** node.id -> slug trang di tích thật (curated). Dùng để gắn link ở cả luồng Neo4j lẫn dataset. */
+export const HERITAGE_SLUG_BY_NODE_ID = new Map<string, string>(
+  NODES.filter((n) => n.heritageSlug).map((n) => [n.id, n.heritageSlug as string]),
+);
+
 export interface Neighbor {
   relation: string;
   direction: 'in' | 'out';
@@ -28,6 +33,7 @@ export interface MapLocation {
   lng: number;
   lat: number;
   province?: string;
+  heritageSlug?: string;
   summary: string;
   neighbors: Neighbor[];
 }
@@ -40,13 +46,21 @@ export function getNodeCoords(id: string): { lat: number; lng: number; name: str
 }
 
 /** Tất cả node có toạ độ (để match hành trình với địa danh lịch sử). */
-export function getAllGeoNodes(): Array<{ id: string; name: string; lat: number; lng: number; type: string }> {
+export function getAllGeoNodes(): Array<{
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  type: string;
+  heritageSlug?: string;
+}> {
   return NODES.filter((n) => n.lat != null && n.lng != null).map((n) => ({
     id: n.id,
     name: n.name,
     lat: n.lat as number,
     lng: n.lng as number,
     type: n.type,
+    heritageSlug: n.heritageSlug,
   }));
 }
 
@@ -91,6 +105,7 @@ export function buildMapLocations(from?: number, to?: number): MapLocation[] {
       lng: n.lng as number,
       lat: n.lat as number,
       province: n.province,
+      heritageSlug: n.heritageSlug,
       summary: n.summary,
       neighbors: buildNeighbors(n.id),
     }));
@@ -136,6 +151,7 @@ export function buildFullGraph() {
       type: n.type,
       year: n.year,
       province: n.province,
+      heritageSlug: n.heritageSlug,
       summary: n.summary,
       mapPoint: !!n.mapPoint,
     })),
