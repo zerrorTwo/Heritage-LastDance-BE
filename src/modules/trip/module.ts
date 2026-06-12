@@ -5,10 +5,19 @@ import { TripRepository, TripMomentRepository } from './repository';
 import { TripService } from './service';
 import { TripController } from './controller';
 import { GamificationModule } from '../gamification/module';
+import { HeritageLocation } from '../heritage_location/model';
+import { HeritageItem } from '../heritage/model';
+import { CheckInModel } from '../gamification/check-in.model';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TripModel, TripMomentModel]),
+    TypeOrmModule.forFeature([
+      TripModel,
+      TripMomentModel,
+      HeritageLocation,
+      HeritageItem,
+      CheckInModel,
+    ]),
     GamificationModule,
   ],
   controllers: [TripController],

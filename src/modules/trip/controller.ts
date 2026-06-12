@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TripService } from './service';
@@ -20,7 +21,12 @@ export class TripController {
 
   @Post()
   @ApiOperation({ summary: 'Lưu một hành trình đã ghi' })
-  async create(@Body() dto: CreateTripDto) {
+  async create(@Body() dto: CreateTripDto, @Req() req: any) {
+    // ValidationPipe (enableImplicitConversion) làm rỗng các object trong mảng
+    // points/moments -> đọc lại từ raw body (Express, chưa transform).
+    const raw = req.body || {};
+    if (Array.isArray(raw.points)) dto.points = raw.points;
+    if (Array.isArray(raw.moments)) dto.moments = raw.moments;
     return Response.Created(await this.tripService.createTrip(dto));
   }
 

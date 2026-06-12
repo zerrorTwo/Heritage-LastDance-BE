@@ -8,19 +8,6 @@ import {
   Min,
 } from 'class-validator';
 
-export class TripPointDto {
-  @ApiProperty() lat!: number;
-  @ApiProperty() lng!: number;
-  @ApiProperty({ required: false, description: 'epoch ms' }) t?: number;
-}
-
-export class TripMomentInputDto {
-  @ApiProperty() lat?: number;
-  @ApiProperty() lng?: number;
-  @ApiProperty({ required: false }) photoUrl?: string;
-  @ApiProperty({ required: false }) note?: string;
-}
-
 export class CreateTripDto {
   @ApiProperty({ description: 'ID người dùng' })
   @IsString()
@@ -66,9 +53,9 @@ export class CreateTripDto {
   @IsOptional()
   weightKg?: number;
 
-  @ApiProperty({ type: [TripPointDto], description: 'Tuyến đường' })
+  @ApiProperty({ type: [Object], description: 'Tuyến đường [{lat,lng,t}]' })
   @IsArray()
-  points!: TripPointDto[];
+  points!: Array<{ lat: number; lng: number; t?: number }>;
 
   @ApiProperty({ required: false })
   @IsString()
@@ -85,10 +72,15 @@ export class CreateTripDto {
   @IsOptional()
   visibility?: 'private' | 'public';
 
-  @ApiProperty({ required: false, type: [TripMomentInputDto] })
+  @ApiProperty({ required: false, description: 'ID hành trình gốc nếu đây là "trải nghiệm lại"' })
+  @IsString()
+  @IsOptional()
+  followedTripId?: string;
+
+  @ApiProperty({ required: false, type: [Object] })
   @IsArray()
   @IsOptional()
-  moments?: TripMomentInputDto[];
+  moments?: Array<{ lat?: number; lng?: number; photoUrl?: string; note?: string }>;
 }
 
 export class UpdateTripVisibilityDto {

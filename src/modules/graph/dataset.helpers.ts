@@ -39,6 +39,17 @@ export function getNodeCoords(id: string): { lat: number; lng: number; name: str
   return null;
 }
 
+/** Tất cả node có toạ độ (để match hành trình với địa danh lịch sử). */
+export function getAllGeoNodes(): Array<{ id: string; name: string; lat: number; lng: number; type: string }> {
+  return NODES.filter((n) => n.lat != null && n.lng != null).map((n) => ({
+    id: n.id,
+    name: n.name,
+    lat: n.lat as number,
+    lng: n.lng as number,
+    type: n.type,
+  }));
+}
+
 /** Lấy danh sách neighbor (ego-graph 1 hop) của một node. */
 export function buildNeighbors(id: string): Neighbor[] {
   const out: Neighbor[] = [];

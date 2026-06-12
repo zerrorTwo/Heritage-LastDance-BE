@@ -38,6 +38,11 @@ export class TripRepository {
     return this.findById(id);
   }
 
+  /** Số hành trình "trải nghiệm lại" hành trình này. */
+  async countFollowers(id: string): Promise<number> {
+    return this.repo.count({ where: { followedTripId: id, status: 'active' } });
+  }
+
   async delete(id: string): Promise<void> {
     await this.repo.delete(id);
   }

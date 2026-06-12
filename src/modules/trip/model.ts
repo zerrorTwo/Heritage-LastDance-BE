@@ -57,8 +57,16 @@ export class TripModel {
   @Column({ type: 'text', nullable: true })
   heritageIds!: string | null;
 
+  // Snapshot di sản trên tuyến: JSON [{id,name,slug,lat,lng}] (BE auto-match khi lưu)
+  @Column({ type: 'text', nullable: true })
+  heritageNames!: string | null;
+
   @Column({ type: 'int', default: 0 })
   heritageCount!: number;
+
+  // Nếu hành trình này là "trải nghiệm lại" một hành trình khác
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  followedTripId!: string | null;
 
   @Column({ type: 'varchar', length: 16, default: 'private' })
   visibility!: 'private' | 'public';
