@@ -8,6 +8,7 @@ import { GamificationModule } from '../gamification/module';
 import { HeritageLocation } from '../heritage_location/model';
 import { HeritageItem } from '../heritage/model';
 import { CheckInModel } from '../gamification/check-in.model';
+import { GraphModule } from '../graph/module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CheckInModel } from '../gamification/check-in.model';
       CheckInModel,
     ]),
     GamificationModule,
+    GraphModule,
   ],
   controllers: [TripController],
   providers: [TripRepository, TripMomentRepository, TripService],

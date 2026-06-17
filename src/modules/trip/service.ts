@@ -13,7 +13,7 @@ import { TripModel } from './model';
 import { HeritageLocation } from '../heritage_location/model';
 import { HeritageItem } from '../heritage/model';
 import { CheckInModel } from '../gamification/check-in.model';
-import { getAllGeoNodes } from '../graph/dataset.helpers';
+import { GraphRepository } from '../graph/repository';
 
 // Đi bộ tham quan ~3.5 MET; kcal = MET * kg * giờ
 const MET_WALK = 3.5;
@@ -58,6 +58,7 @@ export class TripService {
     private readonly heritageRepo: Repository<HeritageItem>,
     @InjectRepository(CheckInModel)
     private readonly checkInRepo: Repository<CheckInModel>,
+    private readonly graphRepo: GraphRepository,
   ) {}
 
   private parse<T>(raw: string | null, fallback: T): T {
@@ -104,8 +105,9 @@ export class TripService {
     const candidates: Candidate[] = [];
     const graphNodeIds = new Set<string>();
 
-    // 1) Node lịch sử trong dataset graph (slug = curated heritageSlug nếu có)
-    for (const n of getAllGeoNodes()) {
+    // 1) Node lịch sử trong graph PG (slug = curated heritageSlug nếu có)
+    const geoNodes = await this.graphRepo.geoNodes();
+    for (const n of geoNodes) {
       if (n.lat >= minLat && n.lat <= maxLat && n.lng >= minLng && n.lng <= maxLng) {
         graphNodeIds.add(n.id);
         candidates.push({ id: n.id, name: n.name, slug: n.heritageSlug ?? null, lat: n.lat, lng: n.lng });
