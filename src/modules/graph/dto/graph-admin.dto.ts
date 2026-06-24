@@ -69,6 +69,9 @@ export class CreateGraphNodeDto {
 
   @IsOptional() @IsString()
   summary?: string;
+
+  @IsOptional() @IsString()
+  summaryEn?: string;
 }
 
 export class UpdateGraphNodeDto {
@@ -86,6 +89,7 @@ export class UpdateGraphNodeDto {
   @IsOptional() @IsBoolean() mapPoint?: boolean;
   @IsOptional() @IsString() @MaxLength(255) heritageSlug?: string;
   @IsOptional() @IsString() summary?: string;
+  @IsOptional() @IsString() summaryEn?: string;
 }
 
 export class CreateGraphEdgeDto {

@@ -66,6 +66,10 @@ export class GraphNode {
   @Column({ type: 'text', nullable: true })
   summary!: string | null;
 
+  /** Bản tóm tắt tiếng Anh (song ngữ cho bản đồ lịch sử). */
+  @Column({ type: 'text', nullable: true })
+  summaryEn!: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 

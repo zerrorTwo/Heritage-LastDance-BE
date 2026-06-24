@@ -252,6 +252,7 @@ export class RagService {
       topK: dto.topK || 5,
     };
     if (dto.heritageId) payload.heritageId = dto.heritageId;
+    if (dto.language) payload.language = dto.language;
 
     return this.requestAi<AiQueryResponse>('/api/heritage/query', {
       method: 'POST',

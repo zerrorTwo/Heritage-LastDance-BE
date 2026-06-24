@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import * as helmet from 'helmet';
 import compression from 'compression';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import initSwagger from './config/innit-swagger';
 import { getDynamicCorsConfig } from './config/cors.config';
@@ -22,6 +23,8 @@ async function bootstrap() {
 
   app.use(helmet.default() as any);
   app.use(compression());
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ limit: '10mb', extended: true }));
 
   const corsConfig = getDynamicCorsConfig();
   app.enableCors(corsConfig);

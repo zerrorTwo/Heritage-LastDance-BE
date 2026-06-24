@@ -19,7 +19,7 @@ export const HERITAGE_SLUG_BY_NODE_ID = new Map<string, string>(
 export interface Neighbor {
   relation: string;
   direction: 'in' | 'out';
-  node: { id: string; name: string; type: string };
+  node: { id: string; name: string; nameEn?: string; type: string };
 }
 
 export interface MapLocation {
@@ -35,6 +35,7 @@ export interface MapLocation {
   province?: string;
   heritageSlug?: string;
   summary: string;
+  summaryEn?: string;
   neighbors: Neighbor[];
 }
 

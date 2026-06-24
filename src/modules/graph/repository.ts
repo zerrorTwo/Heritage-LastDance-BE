@@ -38,10 +38,10 @@ export class GraphRepository {
     for (const e of edges) {
       if (e.fromId === id) {
         const m = nodes.get(e.toId);
-        if (m) out.push({ relation: e.relation, direction: 'out', node: { id: m.id, name: m.name, type: m.type } });
+        if (m) out.push({ relation: e.relation, direction: 'out', node: { id: m.id, name: m.name, nameEn: m.nameEn ?? undefined, type: m.type } });
       } else if (e.toId === id) {
         const m = nodes.get(e.fromId);
-        if (m) out.push({ relation: e.relation, direction: 'in', node: { id: m.id, name: m.name, type: m.type } });
+        if (m) out.push({ relation: e.relation, direction: 'in', node: { id: m.id, name: m.name, nameEn: m.nameEn ?? undefined, type: m.type } });
       }
     }
     return out;
@@ -94,6 +94,7 @@ export class GraphRepository {
         province: n.province ?? undefined,
         heritageSlug: n.heritageSlug ?? undefined,
         summary: n.summary ?? '',
+        summaryEn: n.summaryEn ?? undefined,
         neighbors: this.neighborsOf(n.id, byId, edges),
       }));
   }
@@ -120,6 +121,7 @@ export class GraphRepository {
         province: n.province ?? undefined,
         heritageSlug: n.heritageSlug ?? undefined,
         summary: n.summary ?? '',
+        summaryEn: n.summaryEn ?? undefined,
         mapPoint: !!n.mapPoint,
       })),
       links: edges.map((e) => ({ source: e.fromId, target: e.toId, relation: e.relation })),
@@ -134,6 +136,7 @@ export class GraphRepository {
       .map((n) => ({
         id: n.id,
         name: n.name,
+        nameEn: n.nameEn ?? undefined,
         type: n.type,
         year: n.year ?? undefined,
         yearStart: n.yearStart ?? undefined,
@@ -142,6 +145,7 @@ export class GraphRepository {
         lng: this.num(n.lng),
         mapPoint: !!n.mapPoint,
         summary: n.summary ?? '',
+        summaryEn: n.summaryEn ?? undefined,
       }));
   }
 

@@ -92,4 +92,9 @@ export class QueryKnowledgeDto {
   @IsOptional()
   @IsString()
   collectionName?: string;
+
+  @ApiPropertyOptional({ description: "Ngôn ngữ câu trả lời: 'vi' | 'en'" })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
