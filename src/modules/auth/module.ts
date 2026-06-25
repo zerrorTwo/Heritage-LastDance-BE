@@ -17,6 +17,7 @@ import { AuditLogModel } from '../audit-log/model';
 import { AuditLogRepository } from '../audit-log/repository';
 
 import { JwtStrategy } from '../../common/strategies/jwt.strategy';
+import { GoogleStrategy } from '../../common/strategies/google.strategy';
 import { MailModule } from '../../pkg/mail/mail.module';
 
 @Module({
@@ -46,6 +47,7 @@ import { MailModule } from '../../pkg/mail/mail.module';
     UserRepository,
     AuditLogRepository,
     JwtStrategy,
+    GoogleStrategy,
   ],
   exports: [AuthService],
 })

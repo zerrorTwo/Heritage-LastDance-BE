@@ -27,6 +27,10 @@ export class UserRepository implements IUserRepository {
     return this.repo.findOneBy({ walletAddress });
   }
 
+  async findByGoogleId(googleId: string): Promise<UserModel | null> {
+    return this.repo.findOneBy({ googleId });
+  }
+
   async findAll(opts: FindAllUsersOptions): Promise<[UserModel[], number]> {
     const {
       page,

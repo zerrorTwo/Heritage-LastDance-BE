@@ -25,6 +25,9 @@ export class UserModel {
   @Column({ type: 'varchar', nullable: true })
   walletAddress!: string | null;
 
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  googleId!: string | null;
+
   @Column({ name: 'displayName', type: 'varchar', nullable: true })
   displayname!: string | null;
 
@@ -61,6 +64,7 @@ export interface CreateUserData {
   email?: string | null;
   password?: string | null;
   walletAddress?: string | null;
+  googleId?: string | null;
   displayname?: string | null;
   phone?: string | null;
   gender?: string | null;
@@ -82,6 +86,7 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<UserModel | null>;
   findById(id: string): Promise<UserModel | null>;
   findByWalletAddress(walletAddress: string): Promise<UserModel | null>;
+  findByGoogleId(googleId: string): Promise<UserModel | null>;
   findAll(opts: FindAllUsersOptions): Promise<[UserModel[], number]>;
   create(data: CreateUserData): Promise<UserModel>;
   update(user: Partial<UserModel>): Promise<void>;

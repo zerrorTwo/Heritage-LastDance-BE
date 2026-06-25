@@ -350,24 +350,33 @@ export class AuthService {
   }
 
   async googleLogin(
-    googleProfile: { googleId: string; email: string; firstName: string; lastName: string },
+    googleProfile: { googleId: string; email: string; firstName: string; lastName: string; avatar: string | null },
     ipAddress: string,
     deviceInfo?: string,
   ) {
-    const { email, googleId } = googleProfile;
+    const { email, googleId, firstName, lastName, avatar } = googleProfile;
+    const displayname = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
 
-    // Check if user exists by email
-    let currentUser = await this.userRepo.findByEmail(email);
+    // 1. Tìm theo googleId (định danh ổn định từ Google)
+    let currentUser = await this.userRepo.findByGoogleId(googleId);
 
+    // 2. Không có → tìm theo email và tự link (auto-merge)
     if (!currentUser) {
-      // Create new user with Google ID
-      currentUser = await this.userRepo.create({
-        email,
-        // You might want to add googleId to UserModel
-      });
+      currentUser = await this.userRepo.findByEmail(email);
+      if (currentUser) {
+        currentUser.googleId = googleId;
+        if (!currentUser.avatar && avatar) currentUser.avatar = avatar;
+        if (!currentUser.displayname && displayname) currentUser.displayname = displayname;
+        await this.userRepo.update(currentUser);
+      }
     }
 
-    if (!currentUser.isActiveUser()) {
+    // 3. Chưa có user nào → tạo mới (register via Google, không cần OTP)
+    if (!currentUser) {
+      currentUser = await this.userRepo.create({ email, googleId, displayname, avatar });
+    }
+
+    if (currentUser.isActive === false) {
       throw new BadRequestException('User is inactive!');
     }
 

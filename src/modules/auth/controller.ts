@@ -3,11 +3,13 @@ import {
   Post,
   Body,
   Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
   Get,
 } from '@nestjs/common';
+import { Response as ExpressResponse } from 'express';
 import {
   ApiOperation,
   ApiBody,
@@ -233,9 +235,30 @@ export class AuthController {
       ],
     },
   })
-  async refreshToken(@Body() dto: RefreshTokenDto) {
-    const accessToken = await this.authService.refreshToken(dto.refreshToken);
-    return Response.OK({ accessToken });
+  async refreshToken(
+    @Body() dto: RefreshTokenDto,
+    @Req() req: any,
+    @Res() res: ExpressResponse,
+  ) {
+    let token = dto.refreshToken;
+    if (token === 'google-sso' && req.cookies?.refreshToken) {
+      token = req.cookies.refreshToken;
+    }
+
+    const accessToken = await this.authService.refreshToken(token);
+
+    if (req.cookies?.accessToken) {
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax' as const,
+        path: '/',
+        maxAge: 60 * 60 * 1000, // 1 hour
+      });
+    }
+
+    return res.status(HttpStatus.OK).json(Response.OK({ accessToken }));
   }
 
   @Post('logout')
@@ -246,9 +269,20 @@ export class AuthController {
     description: 'Logout and revoke session. Requires JWT token.',
   })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Req() req: any) {
+  async logout(@Req() req: any, @Res() res: ExpressResponse) {
     await this.authService.logout(req.user.sessionId);
-    return Response.OK({ message: 'Logged out successfully' });
+
+    // Clear cookies
+    const cookieOptions = {
+      httpOnly: true,
+      sameSite: 'lax' as const,
+      path: '/',
+    };
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
+    res.clearCookie('sessionId', cookieOptions);
+
+    return res.status(HttpStatus.OK).json(Response.OK({ message: 'Logged out successfully' }));
   }
 
   @Post('metamask/challenge')
@@ -337,23 +371,44 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Google OAuth callback', description: 'Handle Google OAuth callback. Returns JWT tokens.' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns access token, refresh token, session ID, and user info',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(GeneralResponse) },
-        { properties: { data: { $ref: getSchemaPath(GoogleLoginResponseDto) } } },
-      ],
-    },
-  })
-  async googleCallback(@Req() req: any) {
+  @ApiOperation({ summary: 'Google OAuth callback', description: 'Handle Google OAuth callback. Sets httpOnly cookies and redirects to FE.' })
+  async googleCallback(@Req() req: any, @Res() res: ExpressResponse) {
     const result = await this.authService.googleLogin(
       req.user,
       req.ip,
       req.headers['user-agent'],
     );
-    return Response.OK(result);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax' as const,
+      path: '/',
+    };
+
+    // Access token: short TTL (1h)
+    res.cookie('accessToken', result.accessToken, {
+      ...cookieOptions,
+      maxAge: 60 * 60 * 1000, // 1 hour
+    });
+
+    // Refresh token: long TTL (7 days)
+    res.cookie('refreshToken', result.refreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Session ID: same as refresh token TTL
+    res.cookie('sessionId', result.sessionId, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // User info (non-sensitive, readable by JS) — passed in query parameter for maximum reliability
+    const encodedUser = encodeURIComponent(JSON.stringify(result.user));
+
+    return res.redirect(`${frontendUrl}/auth/google/callback?user=${encodedUser}`);
   }
 }
