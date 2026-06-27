@@ -32,6 +32,7 @@ import { GraphModule } from './modules/graph/module';
 import { GamificationModule } from './modules/gamification/module';
 import { FriendModule } from './modules/friend/module';
 import { TripModule } from './modules/trip/module';
+import { McpTokenModule } from './modules/mcp-token/module';
 import { dbConfig } from './config/database';
 import loadEnv from './config/configuration';
 
@@ -95,6 +96,7 @@ const env = loadEnv();
     GamificationModule,
     FriendModule,
     TripModule,
+    McpTokenModule,
   ],
   providers: [
     {
