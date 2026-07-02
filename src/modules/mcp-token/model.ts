@@ -31,4 +31,7 @@ export class McpTokenModel {
 
   @Column({ type: 'timestamp', nullable: true })
   lastUsedAt!: Date | null;
+
+  @Column({ type: 'simple-array', nullable: true })
+  scopes!: string[] | null;
 }

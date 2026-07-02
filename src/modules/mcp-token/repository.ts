@@ -21,8 +21,8 @@ export class McpTokenRepository {
     });
   }
 
-  async create(userId: string, token: string, name: string): Promise<McpTokenModel> {
-    const entity = this.repo.create({ userId, token, name });
+  async create(userId: string, token: string, name: string, scopes?: string[]): Promise<McpTokenModel> {
+    const entity = this.repo.create({ userId, token, name, scopes: scopes || null });
     return this.repo.save(entity);
   }
 

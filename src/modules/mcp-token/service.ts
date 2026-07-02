@@ -15,13 +15,14 @@ export class McpTokenService {
    * Create a new MCP token for a user.
    * Returns the full token value — this is the ONLY time the raw token is returned.
    */
-  async createToken(userId: string, name: string) {
+  async createToken(userId: string, name: string, scopes?: string[]) {
     const token = this.generateToken();
-    const record = await this.tokenRepo.create(userId, token, name);
+    const record = await this.tokenRepo.create(userId, token, name, scopes);
     return {
       id: record.id,
       name: record.name,
       token: record.token,
+      scopes: record.scopes,
       createdAt: record.createdAt,
     };
   }
@@ -33,6 +34,7 @@ export class McpTokenService {
       id: t.id,
       name: t.name,
       tokenPreview: `${t.token.slice(0, 8)}...${t.token.slice(-4)}`,
+      scopes: t.scopes,
       createdAt: t.createdAt,
       lastUsedAt: t.lastUsedAt,
     }));
@@ -61,6 +63,7 @@ export class McpTokenService {
       email: record.user.email,
       name: record.user.displayname,
       avatar: record.user.avatar,
+      scopes: record.scopes || [],
     };
   }
 }

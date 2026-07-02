@@ -30,7 +30,7 @@ export class McpTokenController {
   @Post()
   @UseGuards(JwtAuthGuard)
   async createToken(@Req() req: any, @Body() dto: CreateMcpTokenDto) {
-    const result = await this.mcpTokenService.createToken(req.user.userId, dto.name);
+    const result = await this.mcpTokenService.createToken(req.user.userId, dto.name, dto.scopes);
     return Response.OK(result);
   }
 
