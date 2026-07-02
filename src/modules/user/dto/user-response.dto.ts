@@ -21,6 +21,41 @@ export class UserProfileDto {
   walletAddress!: string | null;
 
   @ApiProperty({
+    description: 'Display name',
+    example: 'Nguyen Van A',
+    nullable: true,
+  })
+  displayname!: string | null;
+
+  @ApiProperty({
+    description: 'Phone number',
+    example: '0901234567',
+    nullable: true,
+  })
+  phone!: string | null;
+
+  @ApiProperty({
+    description: 'Gender',
+    example: 'other',
+    nullable: true,
+  })
+  gender!: string | null;
+
+  @ApiProperty({
+    description: 'Date of birth',
+    example: '2002-01-31',
+    nullable: true,
+  })
+  dateOfBirth!: string | null;
+
+  @ApiProperty({
+    description: 'Avatar URL or data URL',
+    example: 'https://example.com/avatar.jpg',
+    nullable: true,
+  })
+  avatar!: string | null;
+
+  @ApiProperty({
     description: 'Account active status',
     example: true,
   })

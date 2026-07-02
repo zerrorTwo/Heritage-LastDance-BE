@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { HeritageItem } from './model';
+import { HeritageLocation } from '../heritage_location/model';
+import { HeritageMedia } from '../heritage_media/model';
+import { HeritageTimeline } from '../heritage_timeline/model';
+import { HeritageTranslation } from '../heritage_translation/model';
 
 export interface HeritageFilter {
   status?: string;
@@ -13,6 +17,13 @@ export interface HeritageFilter {
   order?: 'ASC' | 'DESC';
 }
 
+type HeritageWithEmbeddedData = HeritageItem & {
+  media?: HeritageMedia[];
+  locations?: HeritageLocation[];
+  timelines?: HeritageTimeline[];
+  translations?: HeritageTranslation[];
+};
+
 @Injectable()
 export class HeritageRepository {
   constructor(
@@ -20,22 +31,81 @@ export class HeritageRepository {
     private readonly repo: Repository<HeritageItem>,
   ) {}
 
-  async findBySlug(slug: string): Promise<HeritageItem | null> {
-    return this.repo.findOne({ where: { slug } });
+  private async attachEmbeddedData(
+    items: HeritageItem[],
+    options: { includeDetail?: boolean } = {},
+  ): Promise<HeritageWithEmbeddedData[]> {
+    if (!items.length) return [];
+
+    const ids = items.map((item) => item.id);
+    const mediaRepo = this.repo.manager.getRepository(HeritageMedia);
+    const locationRepo = this.repo.manager.getRepository(HeritageLocation);
+
+    const [media, locations, timelines, translations] = await Promise.all([
+      mediaRepo.find({
+        where: { heritageId: In(ids) },
+        order: { sortOrder: 'ASC' },
+      }),
+      locationRepo.find({ where: { heritageId: In(ids) } }),
+      options.includeDetail
+        ? this.repo.manager.getRepository(HeritageTimeline).find({
+            where: { heritageId: In(ids) },
+            order: { eventDate: 'ASC' },
+          })
+        : Promise.resolve([] as HeritageTimeline[]),
+      this.repo.manager.getRepository(HeritageTranslation).find({
+        where: { heritageId: In(ids) },
+      }),
+    ]);
+
+    const groupByHeritageId = <T extends { heritageId: string }>(rows: T[]) =>
+      rows.reduce<Record<string, T[]>>((grouped, row) => {
+        grouped[row.heritageId] = grouped[row.heritageId] || [];
+        grouped[row.heritageId].push(row);
+        return grouped;
+      }, {});
+
+    const mediaByHeritage = groupByHeritageId(media);
+    const locationsByHeritage = groupByHeritageId(locations);
+    const timelinesByHeritage = groupByHeritageId(timelines);
+    const translationsByHeritage = groupByHeritageId(translations);
+
+    return items.map((item) => ({
+      ...item,
+      media: mediaByHeritage[item.id] || [],
+      locations: locationsByHeritage[item.id] || [],
+      ...(options.includeDetail
+        ? {
+            timelines: timelinesByHeritage[item.id] || [],
+          }
+        : {}),
+      translations: translationsByHeritage[item.id] || [],
+    }));
   }
 
-  async findById(id: string): Promise<HeritageItem | null> {
-    return this.repo.findOne({ where: { id } });
+  async findBySlug(slug: string): Promise<HeritageWithEmbeddedData | null> {
+    const heritage = await this.repo.findOne({ where: { slug } });
+    if (!heritage) return null;
+    const [item] = await this.attachEmbeddedData([heritage], { includeDetail: true });
+    return item;
   }
 
-  async findByIds(ids: string[]): Promise<HeritageItem[]> {
+  async findById(id: string): Promise<HeritageWithEmbeddedData | null> {
+    const heritage = await this.repo.findOne({ where: { id } });
+    if (!heritage) return null;
+    const [item] = await this.attachEmbeddedData([heritage], { includeDetail: true });
+    return item;
+  }
+
+  async findByIds(ids: string[]): Promise<HeritageWithEmbeddedData[]> {
     if (!ids.length) return [];
-    return this.repo.createQueryBuilder('heritage')
+    const items = await this.repo.createQueryBuilder('heritage')
       .where('heritage.id IN (:...ids)', { ids })
       .getMany();
+    return this.attachEmbeddedData(items);
   }
 
-  async findAll(filter?: HeritageFilter): Promise<{ items: HeritageItem[]; total: number }> {
+  async findAll(filter?: HeritageFilter): Promise<{ items: HeritageWithEmbeddedData[]; total: number }> {
     const query = this.repo.createQueryBuilder('heritage');
 
     if (filter?.status) {
@@ -44,11 +114,33 @@ export class HeritageRepository {
     if (filter?.type) {
       query.andWhere('heritage.type = :type', { type: filter.type });
     }
-    if (filter?.name) {
-      query.andWhere('heritage.title ILIKE :name', { name: `%${filter.name}%` });
+
+    // Fuzzy search: diacritic-insensitive substring OR trigram similarity.
+    // "bach dang" -> "Bạch Đằng", "dien bien" (typo) -> "Điện Biên".
+    const searchTerm = filter?.name?.trim().replace(/\s+/g, ' ');
+    if (searchTerm) {
+      query.andWhere(
+        `(
+          f_unaccent(lower(heritage.title)) LIKE '%' || f_unaccent(lower(:term)) || '%'
+          OR f_unaccent(lower(coalesce(heritage.alternative_names::text, ''))) LIKE '%' || f_unaccent(lower(:term)) || '%'
+          OR similarity(f_unaccent(lower(heritage.title)), f_unaccent(lower(:term))) > :simThreshold
+        )`,
+        { term: searchTerm, simThreshold: 0.2 },
+      );
     }
 
-    if (filter?.sort) {
+    if (searchTerm) {
+      // Rank: exact substring matches first, then by trigram similarity.
+      query
+        .orderBy(
+          `(f_unaccent(lower(heritage.title)) LIKE '%' || f_unaccent(lower(:term)) || '%')`,
+          'DESC',
+        )
+        .addOrderBy(
+          `similarity(f_unaccent(lower(heritage.title)), f_unaccent(lower(:term)))`,
+          'DESC',
+        );
+    } else if (filter?.sort) {
       const order = filter.order || 'ASC';
       query.orderBy(`heritage.${filter.sort}`, order);
     } else {
@@ -62,7 +154,16 @@ export class HeritageRepository {
     query.skip((page - 1) * limit).take(limit);
 
     const items = await query.getMany();
-    return { items, total };
+    return {
+      items: await this.attachEmbeddedData(items),
+      total,
+    };
+  }
+
+  /** All published items (with embedded location/media), unpaginated — for AI backfill. */
+  async findAllPublished(): Promise<HeritageWithEmbeddedData[]> {
+    const items = await this.repo.find({ where: { status: 'published' } });
+    return this.attachEmbeddedData(items);
   }
 
   async create(data: Partial<HeritageItem>): Promise<HeritageItem> {

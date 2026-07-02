@@ -17,3 +17,4 @@ tests
 **/tests
 **/*.test.ts
 **/*.spec.ts
+.claude/

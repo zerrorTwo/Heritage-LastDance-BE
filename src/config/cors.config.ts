@@ -21,6 +21,7 @@ export const corsConfig: CorsOptions = {
     'Authorization',
     'Cache-Control',
     'X-CSRF-Token',
+    'x-client-id',
   ],
 
   // Optional: Set max age for preflight requests

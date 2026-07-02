@@ -69,6 +69,21 @@ export class ChatRoomRepository {
     return this.repo.save(entity);
   }
 
+  /**
+   * Tạo phòng, bỏ qua nếu id đã tồn tại (chống race khi 2 người cùng vào lần đầu).
+   * Trả về phòng (mới tạo hoặc đã có) — không để DB ném lỗi duplicate key.
+   */
+  async createIfNotExists(data: Partial<ChatRoomModel>): Promise<ChatRoomModel | null> {
+    await this.repo
+      .createQueryBuilder()
+      .insert()
+      .into(ChatRoomModel)
+      .values(data)
+      .orIgnore()
+      .execute();
+    return data.id ? this.findById(data.id) : null;
+  }
+
   async update(id: string, data: Partial<ChatRoomModel>): Promise<ChatRoomModel | null> {
     await this.repo.update(id, data);
     return this.findById(id);
@@ -229,11 +244,12 @@ export class MessageRepository {
     return this.findById(id);
   }
 
-  /** Soft delete: đặt status = DELETED, content = 'Tin nhắn đã bị xóa' */
+  /** Soft delete (thu hồi): đặt status = DELETED, xoá nội dung & ảnh */
   async softDelete(id: string): Promise<MessageModel | null> {
     await this.repo.update(id, {
       status: MessageStatus.DELETED,
-      content: 'Tin nhắn đã bị xóa',
+      content: 'Tin nhắn đã được thu hồi',
+      imageUrl: null,
     });
     return this.findById(id);
   }

@@ -40,6 +40,11 @@ export class HeritageController {
     });
   }
 
+  @Post('ai-sync/backfill')
+  async backfillAiSync() {
+    return this.heritageService.backfillAiSync();
+  }
+
   @Post()
   async createHeritage(@Body() dto: CreateHeritageDto) {
     return this.heritageService.createHeritage(dto);

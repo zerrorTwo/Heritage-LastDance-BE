@@ -78,7 +78,10 @@ export class KnowledgeTestService {
     });
 
     return {
-      results,
+      results: results.map((test) => ({
+        ...test,
+        _id: test.id,
+      })),
       totalCount: total,
       pagination: {
         totalItems: total,
@@ -104,12 +107,24 @@ export class KnowledgeTestService {
       optionsByQuestion.set(opt.questionId, arr);
     }
 
+    const stripOption = (opt: any) => {
+      const { isCorrect, ...rest } = opt;
+      return {
+        ...rest,
+        _id: opt.id,
+        optionId: opt.id,
+      };
+    };
+
     return {
       ...test,
+      _id: test.id,
       averageScore: Number(test.averageScore),
       questions: questions.map((q) => ({
         ...q,
-        options: optionsByQuestion.get(q.id) ?? [],
+        _id: q.id,
+        questionId: q.id,
+        options: (optionsByQuestion.get(q.id) ?? []).map(stripOption),
       })),
     };
   }
@@ -134,7 +149,11 @@ export class KnowledgeTestService {
   }
 
   async getTestsByHeritage(heritageId: string) {
-    return this.testRepo.findByHeritageId(heritageId);
+    const results = await this.testRepo.findByHeritageId(heritageId);
+    return results.map((test) => ({
+      ...test,
+      _id: test.id,
+    }));
   }
 
   async updateBasicInfo(id: string, dto: UpdateKnowledgeTestBasicDto) {
@@ -255,7 +274,13 @@ export class KnowledgeTestService {
       title: test.title,
       questions: questions.map((q) => ({
         ...q,
-        options: byQuestion.get(q.id) ?? [],
+        _id: q.id,
+        questionId: q.id,
+        options: (byQuestion.get(q.id) ?? []).map(({ isCorrect, ...rest }) => ({
+          ...rest,
+          _id: rest.id,
+          optionId: rest.id,
+        })),
       })),
     };
   }
@@ -274,7 +299,16 @@ export class KnowledgeTestService {
     return {
       testId: test.id,
       testTitle: test.title,
-      question: { ...question, options },
+      question: {
+        ...question,
+        _id: question.id,
+        questionId: question.id,
+        options: options.map(({ isCorrect, ...rest }) => ({
+          ...rest,
+          _id: rest.id,
+          optionId: rest.id,
+        })),
+      },
     };
   }
 
@@ -300,7 +334,16 @@ export class KnowledgeTestService {
       })),
     );
 
-    return { ...question, options };
+    return {
+      ...question,
+      _id: question.id,
+      questionId: question.id,
+      options: options.map(opt => ({
+        ...opt,
+        _id: opt.id,
+        optionId: opt.id,
+      })),
+    };
   }
 
   async updateQuestion(
@@ -337,7 +380,16 @@ export class KnowledgeTestService {
 
     const updated = await this.questionRepo.findById(questionId);
     const options = await this.optionRepo.findByQuestionId(questionId);
-    return { ...updated!, options };
+    return {
+      ...updated!,
+      _id: updated!.id,
+      questionId: updated!.id,
+      options: options.map(opt => ({
+        ...opt,
+        _id: opt.id,
+        optionId: opt.id,
+      })),
+    };
   }
 
   async deleteQuestion(testId: string, questionId: string) {
@@ -365,7 +417,11 @@ export class KnowledgeTestService {
       testId,
       questionId: question.id,
       questionContent: question.content,
-      options,
+      options: options.map(({ isCorrect, ...rest }) => ({
+        ...rest,
+        _id: rest.id,
+        optionId: rest.id,
+      })),
     };
   }
 

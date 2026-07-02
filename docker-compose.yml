@@ -1,53 +1,30 @@
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: heritage_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: aioz
-      POSTGRES_PASSWORD: aiozpass
-      POSTGRES_DB: aioz_map
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aioz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: heritage_app
+    build: .
+    container_name: heritage-be
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "3000:3000"
+    env_file:
+      - .env
+
+  # Neo4j cho "Vietnam Historical Universe" (knowledge graph lịch sử).
+  # Chạy riêng:  docker compose up -d neo4j
+  #   - Bolt:    bolt://localhost:7687  (driver kết nối)
+  #   - Browser: http://localhost:7474  (xem/khám phá graph)
+  neo4j:
+    image: neo4j:5
+    container_name: heritage-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
     environment:
-      NODE_ENV: production
-      DATABASE_HOST: db
-      DATABASE_PORT: 5432
-      DATABASE_USER: aioz
-      DATABASE_PASS: aiozpass
-      DATABASE_NAME: aioz_map
-      JWT_SECRET: production_jwt_secret_change_me
-      JWT_EXPIRES_IN: 1h
-      FRONTEND_URL: http://localhost:3000
-      THROTTLE_TTL: 60
-      THROTTLE_LIMIT: 100
+      - NEO4J_AUTH=neo4j/heritage_neo4j
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
     volumes:
-      - ./uploads:/app/uploads
-    networks:
-      - heritage_network
+      - neo4j_data:/data
 
 volumes:
-  postgres_data:
-
-networks:
-  heritage_network:
-    driver: bridge
+  neo4j_data:

@@ -26,7 +26,7 @@ export class MailService {
     this.resend = env.RESEND_API_KEY
       ? new Resend(env.RESEND_API_KEY as string)
       : null;
-    this.templateDir = join(__dirname, '../configs/');
+    this.templateDir = join(__dirname, '../mail/templates');
     this.logger.warn(
       env.RESEND_API_KEY
         ? 'MailService initialized with Resend'
@@ -47,12 +47,14 @@ export class MailService {
       const emailTitle = this.getEmailTitle(mailType);
       const emailBody = await this.generateEmailBody(mailType, data);
 
-      await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: env.RESEND_FROM as string,
         to: userEmail,
         subject: emailTitle,
         html: emailBody,
       });
+      // console.log("🚀 ~ MailService ~ sendEmail ~ result:", result)
+      
 
       this.logger.log(`Email sent successfully to ${userEmail.join(', ')}`);
     } catch (error) {

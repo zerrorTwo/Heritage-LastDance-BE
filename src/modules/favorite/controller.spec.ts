@@ -20,6 +20,7 @@ describe('FavoriteController', () => {
   };
 
   const mockUserPaginatedResult = {
+    userId: 'user-1',
     items: [
       { id: 'heritage-1', title: 'Test Heritage', slug: 'test-heritage', status: 'PUBLISHED' },
     ],
@@ -101,6 +102,7 @@ describe('FavoriteController', () => {
 
     it('should handle empty query params', async () => {
       favoriteService.getByUserId.mockResolvedValue({
+        userId: 'user-1',
         items: [],
         pagination: { page: 1, limit: 10, totalItems: 0, totalPages: 0 },
       });
@@ -109,6 +111,7 @@ describe('FavoriteController', () => {
 
       expect(result).toEqual({
         data: {
+          userId: 'user-1',
           items: [],
           pagination: { page: 1, limit: 10, totalItems: 0, totalPages: 0 },
         },

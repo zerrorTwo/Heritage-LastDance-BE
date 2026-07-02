@@ -15,7 +15,12 @@ const env = loadEnv();
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (req: any) => {
+          return req?.cookies?.accessToken ?? null;
+        },
+      ]),
       ignoreExpiration: false,
       secretOrKey: env.JWT_SECRET as string,
     });

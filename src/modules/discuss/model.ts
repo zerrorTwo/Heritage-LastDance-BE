@@ -48,10 +48,11 @@ export class DiscussModel {
   @Column({ type: 'boolean', default: false })
   isDeleted!: boolean;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  // timestamptz: lưu mốc tuyệt đối (UTC) -> FE hiển thị đúng múi giờ local
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt!: Date;
 }
 

@@ -10,6 +10,7 @@ export interface GoogleProfile {
   email: string;
   firstName: string;
   lastName: string;
+  avatar: string | null;
 }
 
 /**
@@ -34,12 +35,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: Profile,
     done: VerifyCallback,
   ): void {
-    const { id, name, emails } = profile;
+    const { id, name, emails, photos } = profile;
     const googleProfile: GoogleProfile = {
       googleId: id,
       email: emails?.[0]?.value ?? '',
       firstName: name?.givenName ?? '',
       lastName: name?.familyName ?? '',
+      avatar: photos?.[0]?.value ?? null,
     };
     done(null, googleProfile);
   }

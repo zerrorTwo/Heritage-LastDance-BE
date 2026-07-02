@@ -38,7 +38,10 @@ export class LeaderboardService {
     });
 
     return {
-      leaderBoards: results,
+      leaderBoards: results.map(lb => ({
+        ...lb,
+        _id: lb.id,
+      })),
       pagination: {
         totalItems: total,
         currentPage: page,
@@ -129,7 +132,12 @@ export class LeaderboardService {
       await this.entryRepo.findByLeaderboardPaginated(lb.id, page, limit);
 
     return {
-      rankings,
+      rankings: rankings.map((r) => ({
+        ...r,
+        _id: r.id,
+        completeDate: r.completedAt,
+        avatarUrl: r.avatar,
+      })),
       stats: {
         totalParticipants: lb.totalParticipants,
         highestScore: lb.highestScore,
@@ -184,8 +192,14 @@ export class LeaderboardService {
     const rankings = await this.entryRepo.findAllByLeaderboard(leaderboardId);
     return {
       ...lb,
+      _id: lb.id,
       averageScore: Number(lb.averageScore),
-      rankings,
+      rankings: rankings.map((r) => ({
+        ...r,
+        _id: r.id,
+        completeDate: r.completedAt,
+        avatarUrl: r.avatar,
+      })),
     };
   }
 

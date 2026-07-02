@@ -155,6 +155,7 @@ describe('FavoriteService', () => {
         title: 'Test Heritage',
         slug: 'test-heritage',
         status: 'PUBLISHED',
+        favoriteAddedAt: expect.any(String),
       });
       expect(result.pagination.totalItems).toBe(2);
       expect(result.pagination.totalPages).toBe(1);
@@ -215,6 +216,7 @@ describe('FavoriteService', () => {
         title: 'Test Heritage',
         slug: 'test-heritage',
         status: 'PUBLISHED',
+        favoriteAddedAt: expect.any(String),
       });
     });
 

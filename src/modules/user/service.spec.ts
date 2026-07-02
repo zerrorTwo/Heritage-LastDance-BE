@@ -8,10 +8,39 @@ const mockUser = {
   email: 'test@example.com',
   password: 'hashedPassword',
   walletAddress: null,
+  displayname: null,
+  phone: null,
+  gender: null,
+  dateOfBirth: null,
+  avatar: null,
+  role: 'user',
   isActive: true,
   createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-02'),
   isActiveUser: jest.fn().mockReturnValue(true),
 };
+
+const expectedClientUser = (user = mockUser) => ({
+  id: user.id,
+  _id: user.id,
+  email: user.email,
+  walletAddress: user.walletAddress,
+  displayname: user.displayname,
+  phone: user.phone,
+  gender: user.gender,
+  dateOfBirth: user.dateOfBirth,
+  avatar: user.avatar,
+  role: user.role,
+  isActive: user.isActive,
+  account: {
+    email: user.email,
+    isActive: user.isActive,
+    isVerified: true,
+  },
+  createdAt: user.createdAt,
+  createAt: user.createdAt,
+  updatedAt: user.updatedAt,
+});
 
 describe('UserService', () => {
   let service: UserService;
@@ -21,8 +50,10 @@ describe('UserService', () => {
     findByEmail: jest.fn(),
     findById: jest.fn(),
     findByWalletAddress: jest.fn(),
+    findAll: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -48,7 +79,7 @@ describe('UserService', () => {
       const result = await service.getUserById(userId);
 
       expect(userRepo.findById).toHaveBeenCalledWith(userId);
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual(expectedClientUser());
     });
 
     it('should throw BadRequestException when user not found', async () => {
@@ -104,6 +135,25 @@ describe('UserService', () => {
 
       expect(result.email).toBe('new@example.com');
       expect(result.walletAddress).toBe('0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38');
+    });
+
+    it('should update optional profile fields', async () => {
+      const dto = {
+        displayname: 'Nguyen Van A',
+        phone: '0901234567',
+        gender: 'other',
+        dateOfBirth: '2002-01-31',
+        avatar: 'data:image/png;base64,avatar',
+      };
+      mockUserRepo.findById.mockResolvedValue({ ...mockUser });
+      mockUserRepo.update.mockResolvedValue(undefined);
+
+      const result = await service.updateUser(userId, dto);
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining(dto),
+      );
+      expect(result).toEqual(expect.objectContaining(dto));
     });
 
     it('should throw BadRequestException when user not found', async () => {

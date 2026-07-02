@@ -22,6 +22,7 @@ import {
 import { recoverWalletAddress } from '../../utils/wallet/wallet.util';
 import { ChallengeType, IdentifierType } from './model';
 import { AuditAction } from '../audit-log/model';
+import { UserModel } from '../user/model';
 
 // Helper to parse env numbers with fallback
 const getEnvNumber = (key: string, fallback: number): number => {
@@ -107,7 +108,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -116,6 +117,7 @@ export class AuthService {
     await this.validateEmailAttempts(email, ChallengeType.SIGNUP);
 
     const otpCode = generateOTP();
+    console.log("🚀 ~ AuthService ~ signUp ~ otpCode:", otpCode)
 
     await this.mailService.sendOtpEmail(email, otpCode);
 
@@ -191,7 +193,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: session.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -343,29 +345,38 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
   async googleLogin(
-    googleProfile: { googleId: string; email: string; firstName: string; lastName: string },
+    googleProfile: { googleId: string; email: string; firstName: string; lastName: string; avatar: string | null },
     ipAddress: string,
     deviceInfo?: string,
   ) {
-    const { email, googleId } = googleProfile;
+    const { email, googleId, firstName, lastName, avatar } = googleProfile;
+    const displayname = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
 
-    // Check if user exists by email
-    let currentUser = await this.userRepo.findByEmail(email);
+    // 1. Tìm theo googleId (định danh ổn định từ Google)
+    let currentUser = await this.userRepo.findByGoogleId(googleId);
 
+    // 2. Không có → tìm theo email và tự link (auto-merge)
     if (!currentUser) {
-      // Create new user with Google ID
-      currentUser = await this.userRepo.create({
-        email,
-        // You might want to add googleId to UserModel
-      });
+      currentUser = await this.userRepo.findByEmail(email);
+      if (currentUser) {
+        currentUser.googleId = googleId;
+        if (!currentUser.avatar && avatar) currentUser.avatar = avatar;
+        if (!currentUser.displayname && displayname) currentUser.displayname = displayname;
+        await this.userRepo.update(currentUser);
+      }
     }
 
-    if (!currentUser.isActiveUser()) {
+    // 3. Chưa có user nào → tạo mới (register via Google, không cần OTP)
+    if (!currentUser) {
+      currentUser = await this.userRepo.create({ email, googleId, displayname, avatar });
+    }
+
+    if (currentUser.isActive === false) {
       throw new BadRequestException('User is inactive!');
     }
 
@@ -398,7 +409,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -538,7 +549,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       sessionId: newSession.id,
-      user: currentUser,
+      user: this.toUserProfile(currentUser),
     };
   }
 
@@ -645,6 +656,30 @@ export class AuthService {
 
   private createAccessToken(userId: string, sessionId: string): string {
     return this.jwtService.sign({ sub: userId, sessionId });
+  }
+
+  private toUserProfile(user: UserModel) {
+    return {
+      id: user.id,
+      _id: user.id,
+      email: user.email,
+      walletAddress: user.walletAddress,
+      displayname: user.displayname,
+      phone: user.phone,
+      gender: user.gender,
+      dateOfBirth: user.dateOfBirth,
+      avatar: user.avatar,
+      role: user.role,
+      isActive: user.isActive,
+      account: {
+        email: user.email,
+        isActive: user.isActive,
+        isVerified: true,
+      },
+      createdAt: user.createdAt,
+      createAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   private async checkUserNotExists(email: string): Promise<void> {

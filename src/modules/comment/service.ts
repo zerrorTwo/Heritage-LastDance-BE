@@ -149,8 +149,14 @@ export class CommentService {
   private formatComment(comment: CommentModel) {
     return {
       ...comment,
+      _id: comment.id,
       likes: this.parseLikes(comment.likes),
       images: this.parseImages(comment.images),
+      user: {
+        id: comment.userId,
+        displayName: comment.displayName,
+        avatar: comment.avatar,
+      },
     };
   }
 }

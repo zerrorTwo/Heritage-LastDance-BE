@@ -3,35 +3,42 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  Optional,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { UserRepository } from '../../modules/user/repository';
+import { UserRole } from '../../modules/user/model';
 
 @Injectable()
 export class AdminGuard extends JwtAuthGuard {
-  canActivate(context: ExecutionContext): boolean {
-    const baseResult = super.canActivate(context);
+  constructor(
+    reflector: Reflector,
+    @Optional()
+    private readonly userRepo: UserRepository,
+  ) {
+    super(reflector);
+  }
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const baseResult = await Promise.resolve(super.canActivate(context));
     if (!baseResult) return false;
 
     const request = context.switchToHttp().getRequest<{
-      user?: { sub: string; email?: string; sessionId: string };
+      user?: { sub: string; userId?: string; sessionId: string };
     }>();
 
-    const user = request.user;
-    if (!user) {
+    const authUser = request.user;
+    if (!authUser) {
       throw new ForbiddenException('Access denied: Admin access required');
     }
 
-    // TODO: Implement proper admin check
-    // Options for admin verification:
-    // 1. Add isAdmin field to UserModel and check via UserService
-    // 2. Check against ADMIN_USER_IDS env variable
-    // 3. Check JWT payload for admin role
-    // 4. Create admin_users table
+    if (!this.userRepo) {
+      throw new ForbiddenException('Access denied: Admin access required');
+    }
 
-    // Temporary: Check if user email is in admin list (configure as needed)
-    // For production, implement proper admin verification
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
-    const isAdmin = adminEmails.includes(user.email || '');
+    const user = await this.userRepo.findById(authUser.userId || authUser.sub);
+    const isAdmin = user?.role === UserRole.ADMIN;
 
     if (!isAdmin) {
       throw new ForbiddenException('Access denied: Admin access required');
