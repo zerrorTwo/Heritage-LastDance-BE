@@ -4,8 +4,9 @@ export class CreateHeritageTables1746500000000 implements MigrationInterface {
   name = 'CreateHeritageTables1746500000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Enable pgcrypto extension
+    // Enable database extensions
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "postgis"`);
 
     // Create heritage_items table
     await queryRunner.query(`

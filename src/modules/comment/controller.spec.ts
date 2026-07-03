@@ -3,6 +3,7 @@ import { CommentController } from './controller';
 import { CommentService } from './service';
 import { CommentStatus } from './model';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 describe('CommentController', () => {
   let controller: CommentController;
@@ -10,10 +11,16 @@ describe('CommentController', () => {
 
   const mockFormattedComment = {
     id: 'comment-1',
+    _id: 'comment-1',
     heritageId: 'heritage-1',
     userId: 'user-1',
     displayName: 'Test User',
     avatar: 'avatar.jpg',
+    user: {
+      id: 'user-1',
+      displayName: 'Test User',
+      avatar: 'avatar.jpg',
+    },
     content: 'Great place!',
     likes: ['user-2', 'user-3'],
     likesCount: 2,
@@ -38,6 +45,7 @@ describe('CommentController', () => {
       controllers: [CommentController],
       providers: [
         { provide: CommentService, useValue: mockCommentService },
+        { provide: CloudinaryProvider, useValue: { uploadStream: jest.fn() } },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -105,7 +113,7 @@ describe('CommentController', () => {
       const req = { user: { userId: 'user-1' } };
       commentService.createNew.mockResolvedValue(mockFormattedComment);
 
-      const result = await controller.createNew(dto, req);
+      const result = await controller.createNew(dto, [], req);
 
       expect(commentService.createNew).toHaveBeenCalledWith(dto, 'user-1');
       expect(result).toEqual({ data: mockFormattedComment });

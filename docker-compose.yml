@@ -3,17 +3,47 @@ services:
     build: .
     container_name: heritage-be
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     env_file:
       - .env
+    environment:
+      DOCKER: "true"
+      DATABASE_HOST: ${DATABASE_HOST:-postgres}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_NAME: ${DATABASE_NAME:-heritage}
+      DATABASE_SSL_ENABLED: ${DATABASE_SSL_ENABLED:-false}
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: heritage-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-123456}
+      POSTGRES_DB: ${DATABASE_NAME:-heritage}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # Neo4j cho "Vietnam Historical Universe" (knowledge graph lịch sử).
   # Chạy riêng:  docker compose up -d neo4j
   #   - Bolt:    bolt://localhost:7687  (driver kết nối)
   #   - Browser: http://localhost:7474  (xem/khám phá graph)
   neo4j:
-    image: neo4j:5
+    image: neo4j:5-community
     container_name: heritage-neo4j
     restart: unless-stopped
     ports:
@@ -25,6 +55,20 @@ services:
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*
     volumes:
       - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
+  postgres_data:
+  postgres_backups:
   neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:

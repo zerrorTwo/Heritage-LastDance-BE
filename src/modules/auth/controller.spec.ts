@@ -6,7 +6,6 @@ const mockUser = {
   id: 'user-1',
   email: 'test@example.com',
   password: 'hashedPassword',
-  walletAddress: null,
   isActive: true,
   createdAt: new Date(),
   isActiveUser: () => true,
@@ -35,10 +34,17 @@ describe('AuthController', () => {
     refreshToken: jest.fn(),
     logout: jest.fn(),
     googleLogin: jest.fn(),
-    metaMaskChallenge: jest.fn(),
-    metaMaskSignIn: jest.fn(),
-    linkWallet: jest.fn(),
-    verifyLinkWallet: jest.fn(),
+  };
+
+  const mockResponse = () => {
+    const res: any = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+      cookie: jest.fn().mockReturnThis(),
+      clearCookie: jest.fn().mockReturnThis(),
+      redirect: jest.fn().mockReturnThis(),
+    };
+    return res;
   };
 
   const mockRequest = {
@@ -184,96 +190,27 @@ describe('AuthController', () => {
   describe('refreshToken', () => {
     it('should call authService.refreshToken and return OK response', async () => {
       const dto = { refreshToken: 'raw-refresh-token' };
+      const res = mockResponse();
       mockAuthService.refreshToken.mockResolvedValue('mock-access-token');
 
-      const result = await controller.refreshToken(dto);
+      await controller.refreshToken(dto, mockRequest, res);
 
       expect(authService.refreshToken).toHaveBeenCalledWith(dto.refreshToken);
-      expect(result).toEqual({ data: { accessToken: 'mock-access-token' } });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ data: { accessToken: 'mock-access-token' } });
     });
   });
 
   describe('logout', () => {
     it('should call authService.logout and return OK response', async () => {
       mockAuthService.logout.mockResolvedValue(undefined);
+      const res = mockResponse();
 
-      const result = await controller.logout(mockRequest);
+      await controller.logout(mockRequest, res);
 
       expect(authService.logout).toHaveBeenCalledWith(mockRequest.user.sessionId);
-      expect(result).toEqual({ data: { message: 'Logged out successfully' } });
-    });
-  });
-
-  describe('metaMaskChallenge', () => {
-    it('should call authService.metaMaskChallenge and return Created response', async () => {
-      const dto = { walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38' };
-      const challengeResult = {
-        message: 'Sign this...',
-        expiresAt: new Date().toISOString(),
-      };
-      mockAuthService.metaMaskChallenge.mockResolvedValue(challengeResult);
-
-      const result = await controller.metaMaskChallenge(dto);
-
-      expect(authService.metaMaskChallenge).toHaveBeenCalledWith(dto.walletAddress);
-      expect(result).toEqual({ data: challengeResult });
-    });
-  });
-
-  describe('metaMaskSignIn', () => {
-    it('should call authService.metaMaskSignIn and return OK response', async () => {
-      const dto = {
-        walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38',
-        message: 'Sign this...',
-        signature: '0xsignature',
-      };
-      mockAuthService.metaMaskSignIn.mockResolvedValue(mockTokens);
-
-      const result = await controller.metaMaskSignIn(dto, mockRequest);
-
-      expect(authService.metaMaskSignIn).toHaveBeenCalledWith(
-        dto.walletAddress,
-        dto.message,
-        dto.signature,
-        mockRequest.ip,
-        mockRequest.headers['user-agent'],
-      );
-      expect(result).toEqual({ data: mockTokens });
-    });
-  });
-
-  describe('linkWallet', () => {
-    it('should call authService.linkWallet and return Created response', async () => {
-      const dto = { walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38' };
-      const linkResult = {
-        message: 'Click to link your wallet...',
-        expiresAt: new Date().toISOString(),
-      };
-      mockAuthService.linkWallet.mockResolvedValue(linkResult);
-
-      const result = await controller.linkWallet(dto, mockRequest);
-
-      expect(authService.linkWallet).toHaveBeenCalledWith(
-        mockRequest.user.userId,
-        dto.walletAddress,
-      );
-      expect(result).toEqual({ data: linkResult });
-    });
-  });
-
-  describe('verifyLinkWallet', () => {
-    it('should call authService.verifyLinkWallet and return OK response', async () => {
-      const dto = { message: 'Sign this...', signature: '0xsignature' };
-      mockAuthService.verifyLinkWallet.mockResolvedValue(undefined);
-
-      const result = await controller.verifyLinkWallet(dto, mockRequest);
-
-      expect(authService.verifyLinkWallet).toHaveBeenCalledWith(
-        mockRequest.user.userId,
-        dto.message,
-        dto.signature,
-      );
-      expect(result).toEqual({ data: { message: 'Wallet linked successfully' } });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ data: { message: 'Logged out successfully' } });
     });
   });
 
@@ -290,16 +227,17 @@ describe('AuthController', () => {
         ip: '127.0.0.1',
         headers: { 'user-agent': 'Mozilla/5.0' },
       };
+      const res = mockResponse();
       mockAuthService.googleLogin.mockResolvedValue(mockTokens);
 
-      const result = await controller.googleCallback(googleReq);
+      await controller.googleCallback(googleReq, res);
 
       expect(authService.googleLogin).toHaveBeenCalledWith(
         googleProfile,
         googleReq.ip,
         googleReq.headers['user-agent'],
       );
-      expect(result).toEqual({ data: mockTokens });
+      expect(res.redirect).toHaveBeenCalled();
     });
   });
 });

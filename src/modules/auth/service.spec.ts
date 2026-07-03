@@ -31,20 +31,15 @@ jest.mock('../../utils/random/token.util', () => ({
   generateRefreshToken: jest.fn(),
 }));
 
-jest.mock('../../utils/wallet/wallet.util', () => ({
-  recoverWalletAddress: jest.fn(),
-}));
-
 import { hashBcrypt, compareBcrypt, md5 } from '../../utils/hash/hash.util';
 import { generateOTP } from '../../utils/random/otp.util';
 import { generateSecureToken, generateRefreshToken } from '../../utils/random/token.util';
-import { recoverWalletAddress } from '../../utils/wallet/wallet.util';
 
 const createMockUser = (overrides: Record<string, unknown> = {}) => ({
   id: 'user-1',
   email: 'test@example.com',
   password: 'hashedPassword',
-  walletAddress: null,
+  googleId: null,
   displayname: null,
   phone: null,
   gender: null,
@@ -62,7 +57,6 @@ const createExpectedUserProfile = (user: ReturnType<typeof createMockUser>) => (
   id: user.id,
   _id: user.id,
   email: user.email,
-  walletAddress: user.walletAddress,
   displayname: user.displayname,
   phone: user.phone,
   gender: user.gender,
@@ -122,7 +116,7 @@ describe('AuthService', () => {
   const mockUserRepo = {
     findByEmail: jest.fn(),
     findById: jest.fn(),
-    findByWalletAddress: jest.fn(),
+    findByGoogleId: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   };
@@ -680,13 +674,14 @@ describe('AuthService', () => {
       email: 'google@example.com',
       firstName: 'John',
       lastName: 'Doe',
+      avatar: null,
     };
     const ipAddress = '127.0.0.1';
 
     it('should login existing Google user', async () => {
-      const mockUser = createMockUser({ email: googleProfile.email });
+      const mockUser = createMockUser({ email: googleProfile.email, googleId: googleProfile.googleId });
       const mockSession = createMockSession();
-      mockUserRepo.findByEmail.mockResolvedValue(mockUser);
+      mockUserRepo.findByGoogleId.mockResolvedValue(mockUser);
       (generateRefreshToken as jest.Mock).mockReturnValue('raw-refresh-token');
       (md5 as jest.Mock).mockReturnValue('hashed-refresh-token');
       mockSessionRepo.create.mockResolvedValue(mockSession);
@@ -706,6 +701,7 @@ describe('AuthService', () => {
     it('should create new user and login for Google user', async () => {
       const mockUser = createMockUser({ email: googleProfile.email });
       const mockSession = createMockSession();
+      mockUserRepo.findByGoogleId.mockResolvedValue(null);
       mockUserRepo.findByEmail.mockResolvedValue(null);
       mockUserRepo.create.mockResolvedValue(mockUser);
       (generateRefreshToken as jest.Mock).mockReturnValue('raw-refresh-token');
@@ -715,15 +711,37 @@ describe('AuthService', () => {
       const result = await service.googleLogin(googleProfile, ipAddress);
 
       expect(result.accessToken).toBe('mock-access-token');
-      expect(mockUserRepo.create).toHaveBeenCalledWith({ email: googleProfile.email });
+      expect(mockUserRepo.create).toHaveBeenCalledWith({
+        email: googleProfile.email,
+        googleId: googleProfile.googleId,
+        displayname: 'John Doe',
+        avatar: null,
+      });
+    });
+
+    it('should link Google account to existing email user', async () => {
+      const mockUser = createMockUser({ email: googleProfile.email, googleId: null });
+      const mockSession = createMockSession();
+      mockUserRepo.findByGoogleId.mockResolvedValue(null);
+      mockUserRepo.findByEmail.mockResolvedValue(mockUser);
+      (generateRefreshToken as jest.Mock).mockReturnValue('raw-refresh-token');
+      (md5 as jest.Mock).mockReturnValue('hashed-refresh-token');
+      mockSessionRepo.create.mockResolvedValue(mockSession);
+
+      const result = await service.googleLogin(googleProfile, ipAddress);
+
+      expect(result.sessionId).toBe(mockSession.id);
+      expect(mockUser.googleId).toBe(googleProfile.googleId);
+      expect(mockUserRepo.update).toHaveBeenCalledWith(mockUser);
     });
 
     it('should throw BadRequestException when user is inactive', async () => {
       const mockUser = createMockUser({
         email: googleProfile.email,
-        isActiveUser: jest.fn().mockReturnValue(false),
+        googleId: googleProfile.googleId,
+        isActive: false,
       });
-      mockUserRepo.findByEmail.mockResolvedValue(mockUser);
+      mockUserRepo.findByGoogleId.mockResolvedValue(mockUser);
 
       await expect(service.googleLogin(googleProfile, ipAddress)).rejects.toThrow(
         BadRequestException,
@@ -790,258 +808,6 @@ describe('AuthService', () => {
       await expect(
         service.changePassword(userId, sessionId, 'samePass', 'samePass', ipAddress),
       ).rejects.toThrow(BadRequestException);
-    });
-  });
-
-  describe('metaMaskChallenge', () => {
-    const walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38';
-
-    it('should generate MetaMask challenge', async () => {
-      const mockUser = createMockUser({ walletAddress });
-      mockUserRepo.findByWalletAddress.mockResolvedValue(mockUser);
-      (generateSecureToken as jest.Mock).mockReturnValue('challenge-nonce');
-      mockAuthRepo.upsert.mockResolvedValue(createMockAuthChallenge());
-
-      const result = await service.metaMaskChallenge(walletAddress);
-
-      expect(result).toHaveProperty('message');
-      expect(result).toHaveProperty('expiresAt');
-      expect(result.message).toContain(walletAddress);
-      expect(result.message).toContain('challenge-nonce');
-    });
-
-    it('should throw BadRequestException when wallet not linked', async () => {
-      mockUserRepo.findByWalletAddress.mockResolvedValue(null);
-
-      await expect(service.metaMaskChallenge(walletAddress)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-  });
-
-  describe('metaMaskSignIn', () => {
-    const walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38';
-    const ipAddress = '127.0.0.1';
-
-    const buildTestMessage = (addr: string, nonce: string) =>
-      `Welcome to AIOZ!\n\nClick to sign in and accept the AIOZ Terms of Service (https://aiozai.network/terms) and Privacy Policy (https://aiozai.network/privacy).\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nYour authentication status will reset after 24 hours.\n\nWallet address:\n${addr}\n\nNonce:\n${nonce}`;
-
-    it('should sign in with MetaMask', async () => {
-      const nonce = 'test-nonce';
-      const message = buildTestMessage(walletAddress, nonce);
-      const signature = '0xsignature';
-      const mockChallenge = createMockAuthChallenge({
-        identifier: walletAddress,
-        expiredAt: new Date(Date.now() + 120000),
-      });
-      const mockSession = createMockSession();
-      const mockUser = createMockUser({ walletAddress });
-
-      mockAuthRepo.getByIdentifier.mockResolvedValue(mockChallenge);
-      (recoverWalletAddress as jest.Mock).mockReturnValue(walletAddress);
-      mockUserRepo.findByWalletAddress.mockResolvedValue(mockUser);
-      (generateRefreshToken as jest.Mock).mockReturnValue('raw-refresh-token');
-      (md5 as jest.Mock).mockReturnValue('hashed-refresh-token');
-      mockSessionRepo.create.mockResolvedValue(mockSession);
-
-      const result = await service.metaMaskSignIn(walletAddress, message, signature, ipAddress);
-
-      expect(result).toEqual({
-        accessToken: 'mock-access-token',
-        refreshToken: 'raw-refresh-token',
-        sessionId: mockSession.id,
-        user: createExpectedUserProfile(mockUser),
-      });
-      expect(result.user).not.toHaveProperty('password');
-      expect(mockAuditRepo.create).toHaveBeenCalled();
-    });
-
-    it('should create new wallet user if not exists', async () => {
-      const nonce = 'test-nonce';
-      const message = buildTestMessage(walletAddress, nonce);
-      const signature = '0xsignature';
-      const mockChallenge = createMockAuthChallenge({
-        identifier: walletAddress,
-        expiredAt: new Date(Date.now() + 120000),
-      });
-      const mockSession = createMockSession();
-      const mockUser = createMockUser({ walletAddress });
-
-      mockAuthRepo.getByIdentifier.mockResolvedValue(mockChallenge);
-      (recoverWalletAddress as jest.Mock).mockReturnValue(walletAddress);
-      mockUserRepo.findByWalletAddress.mockResolvedValue(null);
-      mockUserRepo.create.mockResolvedValue(mockUser);
-      (generateRefreshToken as jest.Mock).mockReturnValue('raw-refresh-token');
-      (md5 as jest.Mock).mockReturnValue('hashed-refresh-token');
-      mockSessionRepo.create.mockResolvedValue(mockSession);
-
-      const result = await service.metaMaskSignIn(walletAddress, message, signature, ipAddress);
-
-      expect(result.accessToken).toBe('mock-access-token');
-      expect(mockUserRepo.create).toHaveBeenCalledWith({ walletAddress });
-    });
-
-    it('should throw UnauthorizedException when challenge not found', async () => {
-      mockAuthRepo.getByIdentifier.mockResolvedValue(null);
-
-      await expect(
-        service.metaMaskSignIn(
-          walletAddress,
-          buildTestMessage(walletAddress, 'nonce'),
-          '0xsig',
-          ipAddress,
-        ),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should throw UnauthorizedException when challenge expired', async () => {
-      const mockChallenge = createMockAuthChallenge({
-        identifier: walletAddress,
-        expiredAt: new Date(Date.now() - 1000),
-      });
-      mockAuthRepo.getByIdentifier.mockResolvedValue(mockChallenge);
-
-      await expect(
-        service.metaMaskSignIn(
-          walletAddress,
-          buildTestMessage(walletAddress, 'nonce'),
-          '0xsig',
-          ipAddress,
-        ),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should throw UnauthorizedException when signature is invalid', async () => {
-      const nonce = 'test-nonce';
-      const message = buildTestMessage(walletAddress, nonce);
-      const mockChallenge = createMockAuthChallenge({
-        identifier: walletAddress,
-        expiredAt: new Date(Date.now() + 120000),
-      });
-      mockAuthRepo.getByIdentifier.mockResolvedValue(mockChallenge);
-      (recoverWalletAddress as jest.Mock).mockReturnValue('0xDIFFERENT');
-
-      await expect(
-        service.metaMaskSignIn(walletAddress, message, '0xsig', ipAddress),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-  });
-
-  describe('linkWallet', () => {
-    const userId = 'user-1';
-    const walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38';
-
-    it('should create link wallet challenge', async () => {
-      const mockUser = createMockUser({ walletAddress: null });
-      mockUserRepo.findById.mockResolvedValue(mockUser);
-      mockUserRepo.findByWalletAddress.mockResolvedValue(null);
-      (generateSecureToken as jest.Mock).mockReturnValue('link-nonce');
-      mockAuthRepo.upsert.mockResolvedValue(createMockAuthChallenge());
-
-      const result = await service.linkWallet(userId, walletAddress);
-
-      expect(result).toHaveProperty('message');
-      expect(result).toHaveProperty('expiresAt');
-      expect(result.message).toContain('Click to link your wallet');
-    });
-
-    it('should throw BadRequestException when user not found', async () => {
-      mockUserRepo.findById.mockResolvedValue(null);
-
-      await expect(service.linkWallet(userId, walletAddress)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should throw BadRequestException when wallet already linked to user', async () => {
-      const mockUser = createMockUser({ walletAddress: '0xExisting' });
-      mockUserRepo.findById.mockResolvedValue(mockUser);
-
-      await expect(service.linkWallet(userId, walletAddress)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should throw BadRequestException when wallet already linked to another account', async () => {
-      const mockUser = createMockUser({ walletAddress: null });
-      const otherUser = createMockUser({ id: 'other-user' });
-      mockUserRepo.findById.mockResolvedValue(mockUser);
-      mockUserRepo.findByWalletAddress.mockResolvedValue(otherUser);
-
-      await expect(service.linkWallet(userId, walletAddress)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-  });
-
-  describe('verifyLinkWallet', () => {
-    const userId = 'user-1';
-    const walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38';
-
-    const buildLinkMessage = (addr: string, nonce: string) =>
-      `Welcome to AIOZ!\n\nClick to link your wallet and accept the AIOZ Terms of Service (https://aiozai.network/terms) and Privacy Policy (https://aiozai.network/privacy).\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nYour authentication status will reset after 24 hours.\n\nWallet address:\n${addr}\n\nNonce:\n${nonce}`;
-
-    it('should verify and link wallet successfully', async () => {
-      const nonce = 'link-nonce';
-      const message = buildLinkMessage(walletAddress, nonce);
-      const signature = '0xsignature';
-      const mockUser = createMockUser({ walletAddress: null });
-      const mockChallenge = createMockAuthChallenge({
-        identifier: walletAddress,
-        expiredAt: new Date(Date.now() + 120000),
-      });
-
-      mockUserRepo.findById.mockResolvedValue(mockUser);
-      mockAuthRepo.getByIdentifier.mockResolvedValue(mockChallenge);
-      (recoverWalletAddress as jest.Mock).mockReturnValue(walletAddress);
-      mockUserRepo.update.mockResolvedValue(undefined);
-      mockAuthRepo.upsert.mockResolvedValue(mockChallenge);
-
-      await service.verifyLinkWallet(userId, message, signature);
-
-      expect(mockUser.walletAddress).toBe(walletAddress);
-      expect(mockUserRepo.update).toHaveBeenCalledWith(mockUser);
-    });
-
-    it('should throw BadRequestException when user not found', async () => {
-      mockUserRepo.findById.mockResolvedValue(null);
-
-      await expect(
-        service.verifyLinkWallet(userId, 'message', '0xsig'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw UnauthorizedException when challenge not found', async () => {
-      const mockUser = createMockUser();
-      mockUserRepo.findById.mockResolvedValue(mockUser);
-      mockAuthRepo.getByIdentifier.mockResolvedValue(null);
-
-      await expect(
-        service.verifyLinkWallet(
-          userId,
-          buildLinkMessage(walletAddress, 'nonce'),
-          '0xsig',
-        ),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should throw UnauthorizedException when challenge expired', async () => {
-      const mockUser = createMockUser();
-      mockUserRepo.findById.mockResolvedValue(mockUser);
-      mockAuthRepo.getByIdentifier.mockResolvedValue(
-        createMockAuthChallenge({
-          identifier: walletAddress,
-          expiredAt: new Date(Date.now() - 1000),
-        }),
-      );
-
-      await expect(
-        service.verifyLinkWallet(
-          userId,
-          buildLinkMessage(walletAddress, 'nonce'),
-          '0xsig',
-        ),
-      ).rejects.toThrow(UnauthorizedException);
     });
   });
 

@@ -85,7 +85,7 @@ export class PromptBuilder {
         : 'Suggested branches for LESSON: Objectives, Key Knowledge, Examples, Applications, Review Questions.',
       event: vi
         ? 'Gợi ý nhánh cho SỰ KIỆN: Thời gian, Địa điểm, Nguyên nhân, Diễn biến, Hệ quả, Nhân vật liên quan.'
-        : 'Suggested branches for EVENT: Time, Location, Causes, Timeline, Consequences, Related Figures.',
+        : 'Suggested branches for EVENT: Time, Location, Causes, Developments, Consequences, Related Figures.',
       other: vi
         ? 'Gợi ý nhánh: Tổng quan, Chi tiết chính, Yếu tố quan trọng, Kết luận.'
         : 'Suggested branches: Overview, Main Details, Key Elements, Conclusion.',

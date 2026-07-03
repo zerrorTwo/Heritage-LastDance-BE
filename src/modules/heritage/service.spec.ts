@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { HeritageService } from './service';
 import { HeritageRepository } from './repository';
+import { RagService } from '../rag/service';
 
 const mockHeritage = {
   id: '1',
@@ -34,6 +35,11 @@ describe('HeritageService', () => {
     del: jest.fn(),
   };
 
+  const mockRagService = {
+    syncHeritage: jest.fn(),
+    removeHeritage: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -42,6 +48,7 @@ describe('HeritageService', () => {
         HeritageService,
         { provide: HeritageRepository, useValue: mockRepo },
         { provide: CACHE_MANAGER, useValue: mockCacheManager },
+        { provide: RagService, useValue: mockRagService },
       ],
     }).compile();
 

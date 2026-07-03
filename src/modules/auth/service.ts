@@ -19,7 +19,6 @@ import {
   generateSecureToken,
   generateRefreshToken,
 } from '../../utils/random/token.util';
-import { recoverWalletAddress } from '../../utils/wallet/wallet.util';
 import { ChallengeType, IdentifierType } from './model';
 import { AuditAction } from '../audit-log/model';
 import { UserModel } from '../user/model';
@@ -41,8 +40,6 @@ const getOtpMaxResendAttempts = () =>
   getEnvNumber('OTP_MAX_RESEND_ATTEMPTS', 5);
 const getResetPasswordTokenMs = () =>
   getEnvNumber('RESET_PASSWORD_TOKEN_TTL_MINUTES', 15) * 60 * 1000;
-const getMetaMaskChallengeMs = () =>
-  getEnvNumber('METAMASK_CHALLENGE_TTL_MINUTES', 2) * 60 * 1000;
 const getSessionTtlMs = () =>
   getEnvNumber('SESSION_TTL_HOURS', 24) * 60 * 60 * 1000;
 const getRefreshTokenTtlMs = () =>
@@ -65,6 +62,7 @@ export class AuthService {
     ipAddress: string,
     deviceInfo?: string,
   ) {
+    email = this.normalizeEmail(email);
     const currentUser = await this.userRepo.findByEmail(email);
     if (!currentUser) {
       throw new UnauthorizedException('Invalid email or password!');
@@ -113,11 +111,11 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string): Promise<string> {
+    email = this.normalizeEmail(email);
     await this.checkUserNotExists(email);
     await this.validateEmailAttempts(email, ChallengeType.SIGNUP);
 
     const otpCode = generateOTP();
-    console.log("🚀 ~ AuthService ~ signUp ~ otpCode:", otpCode)
 
     await this.mailService.sendOtpEmail(email, otpCode);
 
@@ -213,9 +211,7 @@ export class AuthService {
     this.validateAttempts(authChallenge, now);
 
     const otpCode = generateOTP();
-    this.mailService
-      .sendOtpEmail(authChallenge.identifier, otpCode)
-      .catch(console.error);
+    await this.mailService.sendOtpEmail(authChallenge.identifier, otpCode);
 
     const hashedOTP = await hashBcrypt(otpCode);
 
@@ -227,6 +223,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<string> {
+    email = this.normalizeEmail(email);
     const authToken = generateSecureToken(16);
 
     const currentUser = await this.userRepo.findByEmail(email);
@@ -241,7 +238,6 @@ export class AuthService {
     await this.validateEmailAttempts(email, ChallengeType.FORGOT_PASSWORD);
 
     const otpCode = generateOTP();
-    console.log(`[EMAIL] Send Forgot Password OTP to ${email}: ${otpCode}`);
 
     await this.mailService.sendForgotPasswordEmail(email, otpCode);
 
@@ -354,16 +350,24 @@ export class AuthService {
     ipAddress: string,
     deviceInfo?: string,
   ) {
-    const { email, googleId, firstName, lastName, avatar } = googleProfile;
+    const { googleId, firstName, lastName, avatar } = googleProfile;
+    const email = this.normalizeEmail(googleProfile.email);
+    if (!email) throw new BadRequestException('Google account email is required!');
+
     const displayname = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
 
-    // 1. Tìm theo googleId (định danh ổn định từ Google)
     let currentUser = await this.userRepo.findByGoogleId(googleId);
 
-    // 2. Không có → tìm theo email và tự link (auto-merge)
+    if (currentUser && currentUser.email && this.normalizeEmail(currentUser.email) !== email) {
+      throw new ConflictException('Google account is linked to another email!');
+    }
+
     if (!currentUser) {
       currentUser = await this.userRepo.findByEmail(email);
       if (currentUser) {
+        if (currentUser.googleId && currentUser.googleId !== googleId) {
+          throw new ConflictException('Email is linked to another Google account!');
+        }
         currentUser.googleId = googleId;
         if (!currentUser.avatar && avatar) currentUser.avatar = avatar;
         if (!currentUser.displayname && displayname) currentUser.displayname = displayname;
@@ -371,7 +375,6 @@ export class AuthService {
       }
     }
 
-    // 3. Chưa có user nào → tạo mới (register via Google, không cần OTP)
     if (!currentUser) {
       currentUser = await this.userRepo.create({ email, googleId, displayname, avatar });
     }
@@ -452,182 +455,6 @@ export class AuthService {
     });
   }
 
-  async metaMaskChallenge(walletAddress: string) {
-    const existUser = await this.userRepo.findByWalletAddress(walletAddress);
-    if (!existUser) {
-      throw new BadRequestException(
-        'Wallet is not linked to any active account!',
-      );
-    }
-
-    const nonce = generateSecureToken(16);
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + getMetaMaskChallengeMs());
-
-    await this.authRepo.upsert({
-      challengeType: ChallengeType.WALLET_SIGNIN,
-      identifierType: IdentifierType.WALLET,
-      identifier: walletAddress,
-      tempPassword: null,
-      challenge: nonce,
-      expiredAt: expiresAt,
-      attempts: 0,
-      authToken: '',
-    });
-
-    const message = this.buildMetaMaskMessage(walletAddress, nonce, false);
-
-    return { message, expiresAt: expiresAt.toISOString() };
-  }
-
-  async metaMaskSignIn(
-    walletAddress: string,
-    message: string,
-    signature: string,
-    ipAddress: string,
-    deviceInfo?: string,
-  ) {
-    const now = new Date();
-    const parsed = this.parseMetaMaskMessage(message);
-
-    const authChallenge = await this.authRepo.getByIdentifier(
-      parsed.walletAddress,
-    );
-    if (!authChallenge) {
-      throw new UnauthorizedException('Invalid meta mask challenge!');
-    }
-
-    if (
-      parsed.walletAddress.toLowerCase() !==
-      authChallenge.identifier.toLowerCase()
-    ) {
-      throw new UnauthorizedException('Invalid meta mask challenge!');
-    }
-
-    if (now > authChallenge.expiredAt) {
-      throw new UnauthorizedException('Meta mask challenge expired!');
-    }
-
-    const recoveredAddress = recoverWalletAddress(message, signature);
-    if (recoveredAddress.toLowerCase() !== parsed.walletAddress.toLowerCase()) {
-      throw new UnauthorizedException('Invalid meta mask signature!');
-    }
-
-    const currentUser = await this.createOrGetWalletUser(
-      authChallenge.identifier,
-    );
-
-    authChallenge.verifiedAt = now;
-    await this.authRepo.upsert(authChallenge);
-
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = md5(refreshToken);
-    const now2 = new Date();
-    const sessionTtlMs = getSessionTtlMs();
-    const refreshTokenTtlMs = getRefreshTokenTtlMs();
-
-    const newSession = await this.sessionRepo.create({
-      userId: currentUser.id,
-      refreshTokenHash,
-      ipAddress,
-      deviceInfo: deviceInfo ?? null,
-      expiredAt: new Date(now2.getTime() + sessionTtlMs),
-      refreshedExpiredAt: new Date(now2.getTime() + refreshTokenTtlMs),
-    });
-
-    const accessToken = this.createAccessToken(currentUser.id, newSession.id);
-
-    await this.auditRepo.create({
-      userId: currentUser.id,
-      action: AuditAction.LOGIN,
-      resourceType: 'USER',
-      resourceId: currentUser.id,
-      ipAddress,
-    });
-
-    return {
-      accessToken,
-      refreshToken,
-      sessionId: newSession.id,
-      user: this.toUserProfile(currentUser),
-    };
-  }
-
-  async linkWallet(userId: string, walletAddress: string) {
-    const currentUser = await this.userRepo.findById(userId);
-    if (!currentUser) throw new BadRequestException('User not found!');
-
-    if (currentUser.walletAddress) {
-      throw new BadRequestException('Wallet already linked!');
-    }
-
-    const existWalletUser =
-      await this.userRepo.findByWalletAddress(walletAddress);
-    if (existWalletUser) {
-      throw new BadRequestException(
-        'Wallet already linked to another account!',
-      );
-    }
-
-    const nonce = generateSecureToken(16);
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + getMetaMaskChallengeMs());
-
-    await this.authRepo.upsert({
-      challengeType: ChallengeType.WALLET_LINK,
-      identifierType: IdentifierType.WALLET,
-      identifier: walletAddress,
-      tempPassword: null,
-      challenge: nonce,
-      expiredAt: expiresAt,
-      attempts: 0,
-      authToken: '',
-    });
-
-    const message = this.buildMetaMaskMessage(walletAddress, nonce, true);
-    return { message, expiresAt: expiresAt.toISOString() };
-  }
-
-  async verifyLinkWallet(
-    userId: string,
-    message: string,
-    signature: string,
-  ): Promise<void> {
-    const now = new Date();
-    const currentUser = await this.userRepo.findById(userId);
-    if (!currentUser) throw new BadRequestException('User not found!');
-
-    const parsed = this.parseMetaMaskMessage(message);
-    const authChallenge = await this.authRepo.getByIdentifier(
-      parsed.walletAddress,
-    );
-    if (!authChallenge) {
-      throw new UnauthorizedException('Invalid meta mask challenge!');
-    }
-
-    if (
-      parsed.walletAddress.toLowerCase() !==
-      authChallenge.identifier.toLowerCase()
-    ) {
-      throw new UnauthorizedException('Invalid meta mask challenge!');
-    }
-
-    if (now > authChallenge.expiredAt) {
-      throw new UnauthorizedException('Meta mask challenge expired!');
-    }
-
-    const recoveredAddress = recoverWalletAddress(message, signature);
-    if (recoveredAddress.toLowerCase() !== parsed.walletAddress.toLowerCase()) {
-      throw new UnauthorizedException('Invalid meta mask signature!');
-    }
-
-    currentUser.walletAddress = parsed.walletAddress;
-    await this.userRepo.update(currentUser);
-
-    authChallenge.verifiedAt = now;
-    await this.authRepo.upsert(authChallenge);
-  }
-
   async refreshToken(rawRefreshToken: string): Promise<string> {
     const { userId, sessionId } =
       await this.checkUserAuthorization(rawRefreshToken);
@@ -663,7 +490,6 @@ export class AuthService {
       id: user.id,
       _id: user.id,
       email: user.email,
-      walletAddress: user.walletAddress,
       displayname: user.displayname,
       phone: user.phone,
       gender: user.gender,
@@ -683,6 +509,7 @@ export class AuthService {
   }
 
   private async checkUserNotExists(email: string): Promise<void> {
+    email = this.normalizeEmail(email);
     const user = await this.userRepo.findByEmail(email);
     if (user?.isActiveUser()) {
       throw new ConflictException('User already exists!');
@@ -756,72 +583,8 @@ export class AuthService {
     return passwordReset;
   }
 
-  private buildMetaMaskMessage(
-    walletAddress: string,
-    nonce: string,
-    isLinking: boolean,
-  ): string {
-    const statement = isLinking
-      ? 'Click to link your wallet and accept'
-      : 'Click to sign in and accept';
-
-    return [
-      'Welcome to AIOZ!',
-      '',
-      `${statement} the AIOZ Terms of Service (https://aiozai.network/terms) and Privacy Policy (https://aiozai.network/privacy).`,
-      '',
-      'This request will not trigger a blockchain transaction or cost any gas fees.',
-      '',
-      'Your authentication status will reset after 24 hours.',
-      '',
-      'Wallet address:',
-      walletAddress,
-      '',
-      'Nonce:',
-      nonce,
-    ].join('\n');
-  }
-
-  private parseMetaMaskMessage(message: string): {
-    walletAddress: string;
-    nonce: string;
-  } {
-    const lines = message.split('\n');
-    let walletAddress = '';
-    let nonce = '';
-
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes('Wallet address:') && i + 1 < lines.length) {
-        walletAddress = lines[i + 1].trim();
-      }
-      if (lines[i].includes('Nonce:') && i + 1 < lines.length) {
-        nonce = lines[i + 1].trim();
-      }
-    }
-
-    if (!walletAddress || !nonce) {
-      throw new BadRequestException('Invalid meta mask challenge!');
-    }
-
-    return { walletAddress, nonce };
-  }
-
-  private async createOrGetWalletUser(walletAddress: string): Promise<any> {
-    const existUser = await this.userRepo.findByWalletAddress(walletAddress);
-    if (existUser) {
-      if (!existUser.isActiveUser())
-        throw new BadRequestException('User is inactive!');
-      return existUser;
-    }
-
-    try {
-      return await this.userRepo.create({ walletAddress });
-    } catch (err: any) {
-      if (err?.code === '23505') {
-        return this.userRepo.findByWalletAddress(walletAddress);
-      }
-      throw err;
-    }
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
   }
 
   private async checkUserAuthorization(

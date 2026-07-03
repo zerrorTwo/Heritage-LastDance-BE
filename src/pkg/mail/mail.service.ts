@@ -47,14 +47,12 @@ export class MailService {
       const emailTitle = this.getEmailTitle(mailType);
       const emailBody = await this.generateEmailBody(mailType, data);
 
-      const result = await this.resend.emails.send({
+      await this.resend.emails.send({
         from: env.RESEND_FROM as string,
         to: userEmail,
         subject: emailTitle,
         html: emailBody,
       });
-      // console.log("🚀 ~ MailService ~ sendEmail ~ result:", result)
-      
 
       this.logger.log(`Email sent successfully to ${userEmail.join(', ')}`);
     } catch (error) {

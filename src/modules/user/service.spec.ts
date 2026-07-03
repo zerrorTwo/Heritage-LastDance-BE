@@ -7,7 +7,6 @@ const mockUser = {
   id: 'user-1',
   email: 'test@example.com',
   password: 'hashedPassword',
-  walletAddress: null,
   displayname: null,
   phone: null,
   gender: null,
@@ -24,7 +23,6 @@ const expectedClientUser = (user = mockUser) => ({
   id: user.id,
   _id: user.id,
   email: user.email,
-  walletAddress: user.walletAddress,
   displayname: user.displayname,
   phone: user.phone,
   gender: user.gender,
@@ -49,7 +47,6 @@ describe('UserService', () => {
   const mockUserRepo = {
     findByEmail: jest.fn(),
     findById: jest.fn(),
-    findByWalletAddress: jest.fn(),
     findAll: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -108,25 +105,10 @@ describe('UserService', () => {
       expect(result.email).toBe('updated@example.com');
     });
 
-    it('should update user walletAddress', async () => {
-      const dto = { walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38' };
-      mockUserRepo.findById.mockResolvedValue({ ...mockUser });
-      mockUserRepo.update.mockResolvedValue(undefined);
-
-      const result = await service.updateUser(userId, dto);
-
-      expect(userRepo.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38',
-        }),
-      );
-      expect(result.walletAddress).toBe('0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38');
-    });
-
-    it('should update both email and walletAddress', async () => {
+    it('should update both email and display name', async () => {
       const dto = {
-        email: 'new@example.com',
-        walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38',
+        email: 'New@Example.com',
+        displayname: 'New Name',
       };
       mockUserRepo.findById.mockResolvedValue({ ...mockUser });
       mockUserRepo.update.mockResolvedValue(undefined);
@@ -134,7 +116,7 @@ describe('UserService', () => {
       const result = await service.updateUser(userId, dto);
 
       expect(result.email).toBe('new@example.com');
-      expect(result.walletAddress).toBe('0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38');
+      expect(result.displayname).toBe('New Name');
     });
 
     it('should update optional profile fields', async () => {

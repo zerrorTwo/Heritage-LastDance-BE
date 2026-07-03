@@ -3,7 +3,7 @@ import loadEnv from './config/configuration';
 loadEnv();
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import * as helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -15,8 +15,9 @@ import { getDynamicCorsConfig } from './config/cors.config';
 const GLOBAL_PREFIX = 'api';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
-  const port = process.env.PORT || 3000;
+  const port = process.env.APP_PORT || process.env.PORT || 3000;
 
   app.setGlobalPrefix(GLOBAL_PREFIX);
 
@@ -46,11 +47,11 @@ async function bootstrap() {
 
   if (process.env.NODE_ENV !== 'production') {
     initSwagger(app);
-    console.log(`Swagger is running on: http://localhost:${port}/${GLOBAL_PREFIX}/swagger`);
+    logger.log(`Swagger is running on: http://localhost:${port}/${GLOBAL_PREFIX}/swagger`);
   }
 
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}/${GLOBAL_PREFIX}`);
+  logger.log(`Application is running on: http://localhost:${port}/${GLOBAL_PREFIX}`);
 }
 
 bootstrap();

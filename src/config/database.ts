@@ -67,35 +67,31 @@ class SnakeNamingStrategy
 
 const baseDbConfig = (): DataSourceOptions => {
   const env = loadEnv();
-  console.log('ENV loaded:', JSON.stringify(env, null, 2)); // ← thêm dòng này
   const host = env.DATABASE_HOST || env.HOST || 'localhost';
   const type = env.DATABASE_TYPE || 'postgres';
   const port = Number(env.DATABASE_PORT || env.PORT_DB || 5432);
   const isProduction = env.NODE_ENV === 'production';
+  const synchronize = String(env.DATABASE_SYNCHRONIZE ?? '').toLowerCase() === 'true';
   const useSsl =
-    String(env.DATABASE_SSL || '').toLowerCase() === 'true' ||
+    String(env.DATABASE_SSL_ENABLED ?? env.DATABASE_SSL ?? '').toLowerCase() === 'true' ||
     String(host).includes('aivencloud.com');
-
-  console.log(
-    `[DB] ${type} ${host}:${port}/${env.DATABASE_NAME || env.NAME || 'defaultdb'} ssl=${useSsl}`,
-  );
 
   return {
     type,
     host,
     port,
-    username: env.DATABASE_USER || env.USERNAME || 'postgres',
-    password: env.DATABASE_PASS || env.PASSWORD || '',
+    username: env.DATABASE_USERNAME || env.DATABASE_USER || env.USERNAME || 'postgres',
+    password: env.DATABASE_PASSWORD || env.DATABASE_PASS || env.PASSWORD || '',
     database: env.DATABASE_NAME || env.NAME || 'defaultdb',
     entities: [
       path.join(__dirname, '../modules/**/*.model.{js,ts}'),
     ],
     namingStrategy: new SnakeNamingStrategy(),
-    synchronize: !isProduction,
-    logging: isProduction ? ['error', 'warn'] : ['error'],
+    synchronize: env.DATABASE_SYNCHRONIZE === undefined ? !isProduction : synchronize,
+    logging: false,
     ssl: useSsl ? { rejectUnauthorized: false } : false,
     extra: useSsl ? { ssl: { rejectUnauthorized: false } } : undefined,
-    poolSize: 10,
+    poolSize: Number(env.DATABASE_MAX_CONNECTIONS || 10),
     connectTimeout: 60000,
   } as DataSourceOptions;
 };

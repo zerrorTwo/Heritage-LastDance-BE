@@ -4,7 +4,6 @@ API_PREFIX: "api"
 MAIL_CLIENT_PORT: 1080
 FILE_DRIVER: "local"
 
-# Database
 DATABASE_TYPE: "postgres"
 DATABASE_HOST: "postgres"
 DATABASE_PORT: 5432
@@ -14,44 +13,35 @@ DATABASE_SYNCHRONIZE: true
 DATABASE_SSL_ENABLED: false
 DATABASE_MAX_CONNECTIONS: 20
 
-# JWT
 JWT_EXPIRES_IN: "15m"
 SESSION_TTL_HOURS: 24
 REFRESH_TOKEN_TTL_DAYS: 7
 
-# OTP
 OTP_EXPIRE_MINUTES: 5
 OTP_RESEND_LIMIT_TTL_MINUTES: 60
 OTP_MAX_ATTEMPTS_PER_HOUR: 5
 OTP_MAX_RESEND_ATTEMPTS: 5
 RESET_PASSWORD_TOKEN_TTL_MINUTES: 15
 
-# Frontend
 FRONTEND_URL: "http://localhost:5173"
 FRONTEND_DOMAIN: "http://localhost:5173"
 
-# Google OAuth
 GOOGLE_CLIENT_ID: ""
 GOOGLE_CALLBACK_URL: "http://localhost:3000/api/auth/google/callback"
 
-# Throttling
 THROTTLE_TTL: 60
 THROTTLE_LIMIT: 100
 
-# Resend
 RESEND_FROM: "AIOZ STREAM <no-reply@yourdomain.com>"
 
-# Cloudinary
 CLOUDINARY_CLOUD_NAME: ""
 CLOUDINARY_API_KEY: ""
 
-# AI services
 AI_SERVICE_URL: "http://localhost:5055"
 AI_CHAT_MODE: "search_only"
 DEEPSEEK_BASE_URL: "https://api.deepseek.com"
 DEEPSEEK_MODEL: "deepseek-chat"
 
-# Maildev
 MAIL_HOST: "maildev"
 MAIL_PORT: 1025
 MAIL_USER: ""
@@ -61,7 +51,6 @@ MAIL_REQUIRE_TLS: false
 MAIL_DEFAULT_EMAIL: "noreply@heritage.dev"
 MAIL_DEFAULT_NAME: "Heritage"
 
-# Neo4j
 NEO4J_ENABLED: true
 NEO4J_URI: "neo4j+s://b92d0c6c.databases.neo4j.io"
 NEO4J_USERNAME: "namle"

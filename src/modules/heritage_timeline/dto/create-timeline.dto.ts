@@ -1,14 +1,19 @@
-import { IsString, IsOptional, IsDate } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateTimelineDto {
-  @IsString()
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsUUID()
+  @IsNotEmpty()
   heritageId!: string;
 
+  @ApiProperty({ example: '1945-09-02', required: false, nullable: true })
+  @IsDateString()
   @IsOptional()
-  @IsDate()
-  eventDate?: Date;
+  eventDate?: string | null;
 
-  @IsOptional()
+  @ApiProperty({ example: 'Major historical milestone.', required: false, nullable: true })
   @IsString()
-  description?: string;
+  @IsOptional()
+  description?: string | null;
 }
