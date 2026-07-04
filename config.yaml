@@ -5,8 +5,8 @@ MAIL_CLIENT_PORT: 1080
 FILE_DRIVER: "local"
 
 DATABASE_TYPE: "postgres"
-DATABASE_HOST: "postgres"
-DATABASE_PORT: 5432
+DATABASE_HOST: "localhost"
+DATABASE_PORT: 5433
 DATABASE_USERNAME: "postgres"
 DATABASE_NAME: "heritage"
 DATABASE_SYNCHRONIZE: true
@@ -37,7 +37,7 @@ RESEND_FROM: "AIOZ STREAM <no-reply@yourdomain.com>"
 CLOUDINARY_CLOUD_NAME: ""
 CLOUDINARY_API_KEY: ""
 
-AI_SERVICE_URL: "http://localhost:5055"
+AI_SERVICE_URL: "http://localhost:8001"
 AI_CHAT_MODE: "search_only"
 DEEPSEEK_BASE_URL: "https://api.deepseek.com"
 DEEPSEEK_MODEL: "deepseek-chat"

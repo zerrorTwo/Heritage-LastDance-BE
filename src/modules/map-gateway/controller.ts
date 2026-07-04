@@ -49,6 +49,12 @@ export class MapGatewayController {
     return this.mapGatewayService.getSiteImages(siteId);
   }
 
+  @Get('heritage-sites/:siteId/narrate')
+  @ApiOperation({ summary: 'Get narration for a Map heritage site' })
+  async getSiteNarration(@Param('siteId') siteId: string) {
+    return this.mapGatewayService.getSiteNarration(siteId);
+  }
+
   @Get('heritage-sites/:siteId')
   @ApiOperation({ summary: 'Get a Map heritage site by id' })
   async getHeritageSite(@Param('siteId') siteId: string) {

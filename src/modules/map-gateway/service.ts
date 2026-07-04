@@ -53,6 +53,10 @@ export class MapGatewayService {
     return this.request(`/api/v1/heritage-sites/${encodeURIComponent(siteId)}/images`, { timeoutMs: 15000 });
   }
 
+  async getSiteNarration(siteId: string) {
+    return this.request(`/api/v1/heritage-sites/${encodeURIComponent(siteId)}/narrate`, { timeoutMs: 15000 });
+  }
+
   private async request(
     path: string,
     options: { method?: 'GET' | 'POST'; body?: JsonValue; timeoutMs?: number } = {},
