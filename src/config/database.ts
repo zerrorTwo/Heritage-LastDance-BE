@@ -84,7 +84,7 @@ const baseDbConfig = (): DataSourceOptions => {
     password: env.DATABASE_PASSWORD || env.DATABASE_PASS || env.PASSWORD || '',
     database: env.DATABASE_NAME || env.NAME || 'defaultdb',
     entities: [
-      path.join(__dirname, '../modules/**/*.model.{js,ts}'),
+      path.join(__dirname, '../modules/**/model.{js,ts}'),
     ],
     namingStrategy: new SnakeNamingStrategy(),
     synchronize: env.DATABASE_SYNCHRONIZE === undefined ? !isProduction : synchronize,

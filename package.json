@@ -7,6 +7,7 @@
     "start": "node dist/main.js",
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "seed:graph": "ts-node --transpile-only src/modules/graph/seed/seed.ts",
+    "seed:map-data": "ts-node --transpile-only src/modules/map-seed/seed-map-data.ts",
     "test": "jest --config jest.config.ts --passWithNoTests",
     "test:watch": "jest --config jest.config.ts --watch --passWithNoTests",
     "test:cov": "jest --config jest.config.ts --coverage --passWithNoTests",

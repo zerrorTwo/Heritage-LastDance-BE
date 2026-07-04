@@ -34,6 +34,7 @@ import { FriendModule } from './modules/friend/module';
 import { TripModule } from './modules/trip/module';
 import { McpTokenModule } from './modules/mcp-token/module';
 import { MetricsModule } from './modules/metrics/module';
+import { MapGatewayModule } from './modules/map-gateway/module';
 import { dbConfig } from './config/database';
 import loadEnv from './config/configuration';
 
@@ -99,6 +100,7 @@ const env = loadEnv();
     FriendModule,
     TripModule,
     McpTokenModule,
+    MapGatewayModule,
   ],
   providers: [
     {
