@@ -5,12 +5,18 @@ import { HeritageRepository } from './repository';
 import { HeritageService } from './service';
 import { HeritageController } from './controller';
 import { HeritageSearchIndexBootstrap } from './search-index.bootstrap';
+import { HeritageSeedBootstrap } from './seed.bootstrap';
 import { RagModule } from '../rag/module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([HeritageItem]), RagModule],
   controllers: [HeritageController],
-  providers: [HeritageRepository, HeritageService, HeritageSearchIndexBootstrap],
+  providers: [
+    HeritageRepository,
+    HeritageService,
+    HeritageSearchIndexBootstrap,
+    HeritageSeedBootstrap,
+  ],
   exports: [HeritageRepository],
 })
 export class HeritageModule {}
