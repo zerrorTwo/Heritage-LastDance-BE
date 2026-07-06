@@ -124,7 +124,7 @@ export function buildOverviewStats() {
   ];
 }
 
-/** Dòng thời gian: các sự kiện/trận đánh sắp theo năm (cho A1 timeline). */
+/** Dòng thời gian: các sự kiện/trận đánh sắp theo năm. */
 export function buildTimeline() {
   return NODES.filter((n) => (n.type === 'battle' || n.type === 'event') && n.yearStart != null)
     .sort((a, b) => (a.yearStart as number) - (b.yearStart as number))

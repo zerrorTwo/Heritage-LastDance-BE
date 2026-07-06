@@ -15,12 +15,6 @@ export class UserProfileDto {
   email!: string | null;
 
   @ApiProperty({
-    description: 'Wallet address',
-    example: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38',
-  })
-  walletAddress!: string | null;
-
-  @ApiProperty({
     description: 'Display name',
     example: 'Nguyen Van A',
     nullable: true,

@@ -1,11 +1,14 @@
-import { IsString, IsOptional, IsDate } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class UpdateTimelineDto {
+  @ApiProperty({ example: '1945-09-02', required: false, nullable: true })
+  @IsDateString()
   @IsOptional()
-  @IsDate()
-  eventDate?: Date;
+  eventDate?: string | null;
 
-  @IsOptional()
+  @ApiProperty({ example: 'Updated milestone description.', required: false, nullable: true })
   @IsString()
-  description?: string;
+  @IsOptional()
+  description?: string | null;
 }

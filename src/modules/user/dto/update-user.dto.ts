@@ -22,15 +22,6 @@ export class UpdateUserDto {
   email?: string;
 
   @ApiProperty({
-    description: 'User wallet address (MetaMask)',
-    example: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  walletAddress?: string;
-
-  @ApiProperty({
     description: 'Display name shown in the application',
     example: 'Nguyen Van A',
     required: false,

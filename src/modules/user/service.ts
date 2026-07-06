@@ -57,8 +57,7 @@ export class UserService {
     const user = await this.userRepo.findById(userId);
     if (!user) throw new BadRequestException('User not found!');
 
-    if (dto.email) user.email = dto.email;
-    if (dto.walletAddress) user.walletAddress = dto.walletAddress;
+    if (dto.email) user.email = dto.email.trim().toLowerCase();
     if (dto.displayname !== undefined) user.displayname = dto.displayname;
     if (dto.phone !== undefined) user.phone = dto.phone;
     if (dto.gender !== undefined) user.gender = dto.gender;
@@ -73,8 +72,7 @@ export class UserService {
     const user = await this.userRepo.findById(userId);
     if (!user) throw new BadRequestException('User not found!');
 
-    if (dto.email) user.email = dto.email;
-    if (dto.walletAddress) user.walletAddress = dto.walletAddress;
+    if (dto.email) user.email = dto.email.trim().toLowerCase();
     if (dto.displayname !== undefined) user.displayname = dto.displayname;
     if (dto.phone !== undefined) user.phone = dto.phone;
     if (dto.gender !== undefined) user.gender = dto.gender;
@@ -99,7 +97,6 @@ export class UserService {
       id: user.id,
       _id: user.id,
       email: user.email,
-      walletAddress: user.walletAddress,
       displayname: user.displayname,
       phone: user.phone,
       gender: user.gender,

@@ -31,12 +31,6 @@ import {
   ResetPasswordDto,
 } from './dto/forgot-password.dto';
 import { ChangePasswordDto, RefreshTokenDto } from './dto/change-password.dto';
-import {
-  MetaMaskChallengeDto,
-  MetaMaskSignInDto,
-  LinkWalletDto,
-  VerifyLinkWalletDto,
-} from './dto/meta-mask.dto';
 import { Response, GeneralResponse } from '../../common/response';
 import {
   UserProfileDto,
@@ -44,7 +38,6 @@ import {
   OtpVerifyResponseDto,
   ForgotPasswordResponseDto,
   RefreshTokenResponseDto,
-  MetaMaskChallengeResponseDto,
   GoogleLoginResponseDto,
   LogoutResponseDto,
 } from './dto/response';
@@ -55,7 +48,6 @@ import {
   OtpVerifyResponseDto,
   ForgotPasswordResponseDto,
   RefreshTokenResponseDto,
-  MetaMaskChallengeResponseDto,
   GoogleLoginResponseDto,
   LogoutResponseDto,
   UserProfileDto,
@@ -283,82 +275,6 @@ export class AuthController {
     res.clearCookie('sessionId', cookieOptions);
 
     return res.status(HttpStatus.OK).json(Response.OK({ message: 'Logged out successfully' }));
-  }
-
-  @Post('metamask/challenge')
-  @ApiOperation({ summary: 'Get MetaMask challenge', description: 'Get challenge message for MetaMask wallet' })
-  @ApiBody({ type: MetaMaskChallengeDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Returns challenge message and expiration time',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(GeneralResponse) },
-        { properties: { data: { $ref: getSchemaPath(MetaMaskChallengeResponseDto) } } },
-      ],
-    },
-  })
-  async metaMaskChallenge(@Body() dto: MetaMaskChallengeDto) {
-    const result = await this.authService.metaMaskChallenge(dto.walletAddress);
-    return Response.Created(result);
-  }
-
-  @Post('metamask/signin')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Sign in with MetaMask', description: 'Authenticate using MetaMask wallet. Returns JWT tokens.' })
-  @ApiBody({ type: MetaMaskSignInDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns access token, refresh token, session ID, and user info',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(GeneralResponse) },
-        { properties: { data: { $ref: getSchemaPath(AuthResponseDto) } } },
-      ],
-    },
-  })
-  async metaMaskSignIn(@Body() dto: MetaMaskSignInDto, @Req() req: any) {
-    const result = await this.authService.metaMaskSignIn(
-      dto.walletAddress,
-      dto.message,
-      dto.signature,
-      req.ip,
-      req.headers['user-agent'],
-    );
-    return Response.OK(result);
-  }
-
-  @Post('metamask/link')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Link MetaMask wallet',
-    description: 'Link MetaMask wallet to authenticated user. Requires JWT token.',
-  })
-  @ApiBody({ type: LinkWalletDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Returns challenge message for verification',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(GeneralResponse) },
-        { properties: { data: { $ref: getSchemaPath(MetaMaskChallengeResponseDto) } } },
-      ],
-    },
-  })
-  async linkWallet(@Body() dto: LinkWalletDto, @Req() req: any) {
-    const result = await this.authService.linkWallet(req.user.userId, dto.walletAddress);
-    return Response.Created(result);
-  }
-
-  @Post('metamask/verify-link')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify wallet link', description: 'Verify MetaMask wallet link. Requires JWT token.' })
-  @ApiBody({ type: VerifyLinkWalletDto })
-  @ApiResponse({ status: 200, description: 'Wallet linked successfully' })
-  async verifyLinkWallet(@Body() dto: VerifyLinkWalletDto, @Req() req: any) {
-    await this.authService.verifyLinkWallet(req.user.userId, dto.message, dto.signature);
-    return Response.OK({ message: 'Wallet linked successfully' });
   }
 
   @Get('google')

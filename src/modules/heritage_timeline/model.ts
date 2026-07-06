@@ -1,5 +1,4 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
-import { HeritageItem } from '../heritage/model';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('heritage_timelines')
 @Index('idx_timeline_date', ['eventDate'])
@@ -10,11 +9,8 @@ export class HeritageTimeline {
   @Column({ type: 'uuid' })
   heritageId!: string;
 
-  @ManyToOne(() => HeritageItem, { onDelete: 'CASCADE' })
-  heritage!: HeritageItem;
-
   @Column({ type: 'date', nullable: true })
-  eventDate!: Date | null;
+  eventDate!: string | null;
 
   @Column({ type: 'text', nullable: true })
   description!: string | null;

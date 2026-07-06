@@ -1,9 +1,12 @@
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import { Logger } from '@nestjs/common';
 import {
   getEnvironmentOrigins,
   isOriginAllowed,
   logCorsInfo,
 } from './cors.utils';
+
+const logger = new Logger('CorsConfig');
 
 // CORS configuration for the application
 export const corsConfig: CorsOptions = {
@@ -42,7 +45,7 @@ export const getDynamicCorsConfig = (): CorsOptions => {
         return callback(null, true);
       }
 
-      console.warn(`CORS: Origin '${origin}' not allowed`);
+      logger.warn(`Origin '${origin}' not allowed`);
       return callback(new Error('Not allowed by CORS'), false);
     },
   };

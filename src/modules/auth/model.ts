@@ -8,13 +8,10 @@ import {
 export enum ChallengeType {
   SIGNUP = 'SIGNUP',
   FORGOT_PASSWORD = 'FORGOT_PASSWORD',
-  WALLET_SIGNIN = 'WALLET',
-  WALLET_LINK = 'WALLET_LINK',
 }
 
 export enum IdentifierType {
   EMAIL = 'EMAIL',
-  WALLET = 'WALLET',
 }
 
 @Entity('auth_challenges')

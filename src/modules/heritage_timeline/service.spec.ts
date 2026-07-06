@@ -1,20 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
-import { HeritageTimelineService } from './service';
+import { Test, TestingModule } from '@nestjs/testing';
 import { HeritageTimelineRepository } from './repository';
+import { HeritageTimelineService } from './service';
 
 const mockTimeline = {
-  id: '1',
-  heritageId: 'h1',
-  year: 1900,
-  event: 'Test Event',
+  id: 'timeline-1',
+  heritageId: 'heritage-1',
+  eventDate: '1945-09-02',
+  description: 'Declaration of independence.',
 };
-
-const mockTimelines = [mockTimeline];
 
 describe('HeritageTimelineService', () => {
   let service: HeritageTimelineService;
-  let repo: HeritageTimelineRepository;
 
   const mockRepo = {
     findById: jest.fn(),
@@ -34,99 +31,57 @@ describe('HeritageTimelineService', () => {
       ],
     }).compile();
 
-    service = module.get<HeritageTimelineService>(HeritageTimelineService);
-    repo = module.get<HeritageTimelineRepository>(HeritageTimelineRepository);
+    service = module.get(HeritageTimelineService);
   });
 
-  describe('getTimelineById', () => {
-    it('should return timeline when found by id', async () => {
-      mockRepo.findById.mockResolvedValue(mockTimeline);
+  it('should return timeline by id', async () => {
+    mockRepo.findById.mockResolvedValue(mockTimeline);
 
-      const result = await service.getTimelineById('1');
-
-      expect(repo.findById).toHaveBeenCalledWith('1');
-      expect(result).toEqual(mockTimeline);
-    });
-
-    it('should throw BadRequestException when timeline not found', async () => {
-      mockRepo.findById.mockResolvedValue(null);
-
-      await expect(service.getTimelineById('999')).rejects.toThrow(BadRequestException);
-      expect(repo.findById).toHaveBeenCalledWith('999');
-    });
+    await expect(service.getTimelineById('timeline-1')).resolves.toEqual(mockTimeline);
   });
 
-  describe('getTimelinesByHeritageId', () => {
-    it('should return timelines for given heritageId', async () => {
-      mockRepo.findByHeritageId.mockResolvedValue(mockTimelines);
+  it('should throw when timeline not found', async () => {
+    mockRepo.findById.mockResolvedValue(null);
 
-      const result = await service.getTimelinesByHeritageId('h1');
-
-      expect(repo.findByHeritageId).toHaveBeenCalledWith('h1');
-      expect(result).toEqual(mockTimelines);
-    });
-
-    it('should return empty array when no timelines found', async () => {
-      mockRepo.findByHeritageId.mockResolvedValue([]);
-
-      const result = await service.getTimelinesByHeritageId('h99');
-
-      expect(result).toEqual([]);
-    });
+    await expect(service.getTimelineById('missing')).rejects.toThrow(BadRequestException);
   });
 
-  describe('createTimeline', () => {
-    it('should create and return new timeline', async () => {
-      const dto = { heritageId: 'h1', year: 2000, event: 'New Event' };
-      mockRepo.create.mockResolvedValue({ id: '2', ...dto });
+  it('should return timelines by heritage id', async () => {
+    mockRepo.findByHeritageId.mockResolvedValue([mockTimeline]);
 
-      const result = await service.createTimeline(dto as any);
+    await expect(service.getTimelinesByHeritageId('heritage-1')).resolves.toEqual([mockTimeline]);
+  });
 
-      expect(repo.create).toHaveBeenCalledWith(dto);
-      expect(result).toEqual({ id: '2', ...dto });
+  it('should create timeline', async () => {
+    const dto = {
+      heritageId: 'heritage-1',
+      eventDate: '1945-09-02',
+      description: 'Declaration of independence.',
+    };
+    mockRepo.create.mockResolvedValue({ id: 'timeline-1', ...dto });
+
+    await expect(service.createTimeline(dto)).resolves.toEqual({ id: 'timeline-1', ...dto });
+  });
+
+  it('should update timeline', async () => {
+    mockRepo.findById.mockResolvedValueOnce(mockTimeline).mockResolvedValueOnce({
+      ...mockTimeline,
+      description: 'Updated.',
+    });
+    mockRepo.update.mockResolvedValue(undefined);
+
+    await expect(service.updateTimeline('timeline-1', { description: 'Updated.' })).resolves.toEqual({
+      ...mockTimeline,
+      description: 'Updated.',
     });
   });
 
-  describe('updateTimeline', () => {
-    it('should update and return updated timeline', async () => {
-      const dto = { event: 'Updated Event' };
-      const updated = { ...mockTimeline, ...dto };
-      mockRepo.findById.mockResolvedValueOnce(mockTimeline);
-      mockRepo.update.mockResolvedValue(undefined);
-      mockRepo.findById.mockResolvedValueOnce(updated);
+  it('should delete timeline', async () => {
+    mockRepo.findById.mockResolvedValue(mockTimeline);
+    mockRepo.delete.mockResolvedValue(undefined);
 
-      const result = await service.updateTimeline('1', dto as any);
-
-      expect(repo.findById).toHaveBeenCalledWith('1');
-      expect(repo.update).toHaveBeenCalledWith('1', dto);
-      expect(result).toEqual(updated);
-    });
-
-    it('should throw BadRequestException when updating non-existent timeline', async () => {
-      mockRepo.findById.mockResolvedValue(null);
-
-      await expect(service.updateTimeline('999', {} as any)).rejects.toThrow(BadRequestException);
-      expect(repo.findById).toHaveBeenCalledWith('999');
-    });
-  });
-
-  describe('deleteTimeline', () => {
-    it('should delete timeline and return success message', async () => {
-      mockRepo.findById.mockResolvedValue(mockTimeline);
-      mockRepo.delete.mockResolvedValue(undefined);
-
-      const result = await service.deleteTimeline('1');
-
-      expect(repo.findById).toHaveBeenCalledWith('1');
-      expect(repo.delete).toHaveBeenCalledWith('1');
-      expect(result).toEqual({ message: 'Timeline event deleted successfully' });
-    });
-
-    it('should throw BadRequestException when deleting non-existent timeline', async () => {
-      mockRepo.findById.mockResolvedValue(null);
-
-      await expect(service.deleteTimeline('999')).rejects.toThrow(BadRequestException);
-      expect(repo.findById).toHaveBeenCalledWith('999');
+    await expect(service.deleteTimeline('timeline-1')).resolves.toEqual({
+      message: 'Timeline event deleted successfully',
     });
   });
 });

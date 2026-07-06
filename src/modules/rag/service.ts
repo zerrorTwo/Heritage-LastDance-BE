@@ -206,9 +206,8 @@ export class RagService {
       try {
         return await this.queryWithAiService(dto);
       } catch (error) {
-        console.warn(
-          'RagService llm_9router query failed, falling back to search_only:',
-          (error as Error).message,
+        this.logger.warn(
+          `llm_9router query failed, falling back to search_only: ${(error as Error).message}`,
         );
       }
     }

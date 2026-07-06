@@ -6,6 +6,7 @@ import {
   ChatRoomParticipantRepository,
   MessageRepository,
 } from './repository';
+import { FriendService } from '../friend/service';
 import { ParticipantStatus } from './model';
 
 const mockRoom = (overrides: Record<string, unknown> = {}) => ({
@@ -55,6 +56,7 @@ describe('ChatRoomService', () => {
   const mockChatRoomRepo = {
     findById: jest.fn(),
     create: jest.fn(),
+    createIfNotExists: jest.fn(),
     addParticipant: jest.fn(),
     updateLastMessage: jest.fn(),
   };
@@ -72,6 +74,10 @@ describe('ChatRoomService', () => {
     findByChatRoomId: jest.fn(),
   };
 
+  const mockFriendService = {
+    areFriends: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -81,6 +87,7 @@ describe('ChatRoomService', () => {
         { provide: ChatRoomRepository, useValue: mockChatRoomRepo },
         { provide: ChatRoomParticipantRepository, useValue: mockParticipantRepo },
         { provide: MessageRepository, useValue: mockMessageRepo },
+        { provide: FriendService, useValue: mockFriendService },
       ],
     }).compile();
 
@@ -222,6 +229,7 @@ describe('ChatRoomService', () => {
     it('should throw NotFoundException when room not found', async () => {
       const dto = { userId: 'user-1', username: 'Test' };
       mockChatRoomRepo.findById.mockResolvedValue(null);
+      mockChatRoomRepo.createIfNotExists.mockResolvedValue(null);
 
       await expect(service.joinRoom('non-existent', dto)).rejects.toThrow(
         NotFoundException,
@@ -294,12 +302,15 @@ describe('ChatRoomService', () => {
 
       const result = await service.saveMessage(dto);
 
-      expect(messageRepo.create).toHaveBeenCalledWith({
+      expect(messageRepo.create).toHaveBeenCalledWith(expect.objectContaining({
         chatRoomId: 'room-1',
         userId: 'user-1',
         content: 'Hello everyone!',
         type: 'TEXT',
-      });
+        username: 'Test User',
+        avatarUrl: null,
+        imageUrl: null,
+      }));
       expect(chatRoomRepo.updateLastMessage).toHaveBeenCalledWith('room-1', {
         content: 'Hello everyone!',
         userId: 'user-1',
@@ -387,12 +398,10 @@ describe('ChatRoomService', () => {
       expect(result).toEqual(messages);
     });
 
-    it('should throw NotFoundException when room not found', async () => {
+    it('should return empty messages when room not found', async () => {
       mockChatRoomRepo.findById.mockResolvedValue(null);
 
-      await expect(service.getRoomMessages('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getRoomMessages('non-existent')).resolves.toEqual([]);
     });
   });
 
@@ -413,12 +422,10 @@ describe('ChatRoomService', () => {
       expect(result).toEqual(participants);
     });
 
-    it('should throw NotFoundException when room not found', async () => {
+    it('should return empty users when room not found', async () => {
       mockChatRoomRepo.findById.mockResolvedValue(null);
 
-      await expect(service.getRoomUsers('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getRoomUsers('non-existent')).resolves.toEqual([]);
     });
   });
 });

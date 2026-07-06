@@ -7,7 +7,6 @@ const mockUser = {
   id: 'user-1',
   email: 'test@example.com',
   password: 'hashedPassword',
-  walletAddress: null,
   isActive: true,
   createdAt: new Date('2024-01-01'),
   isActiveUser: () => true,
@@ -71,9 +70,9 @@ describe('UserController', () => {
       expect(result).toEqual({ data: updatedUser });
     });
 
-    it('should call userService.updateUser with walletAddress', async () => {
-      const dto = { walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38' };
-      const updatedUser = { ...mockUser, walletAddress: dto.walletAddress };
+    it('should call userService.updateUser with display name', async () => {
+      const dto = { displayname: 'Updated Name' };
+      const updatedUser = { ...mockUser, displayname: dto.displayname };
       mockUserService.updateUser.mockResolvedValue(updatedUser);
 
       const result = await controller.updateCurrentUser(dto, mockRequest);

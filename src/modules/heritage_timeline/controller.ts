@@ -1,34 +1,41 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
-import { HeritageTimelineService } from './service';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateTimelineDto } from './dto/create-timeline.dto';
 import { UpdateTimelineDto } from './dto/update-timeline.dto';
+import { HeritageTimelineService } from './service';
 
+@ApiTags('Heritage Timeline')
 @Controller('timeline')
 export class HeritageTimelineController {
   constructor(private readonly timelineService: HeritageTimelineService) {}
 
-  @Get(':id')
-  async getTimeline(@Param('id') id: string) {
-    return this.timelineService.getTimelineById(id);
-  }
-
   @Get('heritage/:heritageId')
-  async getTimelinesByHeritage(@Param('heritageId') heritageId: string) {
+  @ApiOperation({ summary: 'Get timeline events by heritage ID' })
+  getTimelinesByHeritage(@Param('heritageId') heritageId: string) {
     return this.timelineService.getTimelinesByHeritageId(heritageId);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get timeline event by ID' })
+  getTimeline(@Param('id') id: string) {
+    return this.timelineService.getTimelineById(id);
+  }
+
   @Post()
-  async createTimeline(@Body() dto: CreateTimelineDto) {
+  @ApiOperation({ summary: 'Create timeline event' })
+  createTimeline(@Body() dto: CreateTimelineDto) {
     return this.timelineService.createTimeline(dto);
   }
 
   @Put(':id')
-  async updateTimeline(@Param('id') id: string, @Body() dto: UpdateTimelineDto) {
+  @ApiOperation({ summary: 'Update timeline event' })
+  updateTimeline(@Param('id') id: string, @Body() dto: UpdateTimelineDto) {
     return this.timelineService.updateTimeline(id, dto);
   }
 
   @Delete(':id')
-  async deleteTimeline(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Delete timeline event' })
+  deleteTimeline(@Param('id') id: string) {
     return this.timelineService.deleteTimeline(id);
   }
 }

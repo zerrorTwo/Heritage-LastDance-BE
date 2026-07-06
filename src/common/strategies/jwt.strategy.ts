@@ -5,6 +5,7 @@ import { JwtPayload } from '../decorators/current-user.decorator';
 import loadEnv from '../../config/configuration';
 
 const env = loadEnv();
+const jwtSecret = (env.JWT_SECRET || process.env.JWT_SECRET || 'dev-secret-key') as string;
 
 /**
  * Passport JWT strategy.
@@ -22,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         },
       ]),
       ignoreExpiration: false,
-      secretOrKey: env.JWT_SECRET as string,
+      secretOrKey: jwtSecret,
     });
   }
 

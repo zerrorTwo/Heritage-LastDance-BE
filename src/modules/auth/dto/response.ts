@@ -84,21 +84,6 @@ export class RefreshTokenResponseDto {
   accessToken!: string;
 }
 
-// Response for MetaMask challenge
-export class MetaMaskChallengeResponseDto {
-  @ApiProperty({
-    description: 'Challenge message to sign',
-    example: 'Sign this message to authenticate: 1234567890',
-  })
-  message!: string;
-
-  @ApiProperty({
-    description: 'Challenge expiration time',
-    example: '2026-05-06T15:30:00.000Z',
-  })
-  expiresAt!: string;
-}
-
 // Response for logout
 export class LogoutResponseDto {
   @ApiProperty({

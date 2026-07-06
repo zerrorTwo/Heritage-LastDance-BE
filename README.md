@@ -1,12 +1,11 @@
 # Heritage KLTN Backend API
 
-A NestJS-based authentication and user management system with support for email OTP, JWT authentication, MetaMask wallet integration, and comprehensive audit logging.
+A NestJS-based authentication and user management system with support for email OTP, JWT authentication, Google OAuth, and comprehensive audit logging.
 
 ## Features
 
 - **Authentication**: Email/password signup and signin with OTP verification
 - **Password Management**: Forgot password with OTP, password reset, and change password
-- **MetaMask Integration**: Wallet-based authentication and wallet linking
 - **Google OAuth**: Sign in with Google account
 - **Session Management**: JWT access tokens with refresh token rotation
 - **Audit Logging**: Comprehensive audit trail for all user actions
@@ -40,13 +39,9 @@ A NestJS-based authentication and user management system with support for email 
 │   ├── utils/
 │   │   ├── constants/
 │   │   ├── hash/
-│   │   ├── random/
-│   │   └── wallet/       # MetaMask utilities
+│   │   └── random/
 │   └── config/           # Configuration loader
 ├── config.yaml            # Local configuration
-├── dev.yaml              # Development config
-├── staging.yaml          # Staging config
-├── production.yaml       # Production config
 ├── docker-compose.yml    # Docker services
 └── Dockerfile            # Container build
 ```
@@ -85,7 +80,6 @@ The application uses YAML configuration files with environment variable override
 | `OTP_RESEND_LIMIT_TTL_MINUTES` | Resend OTP limit TTL | 60 |
 | `OTP_MAX_RESEND_ATTEMPTS` | Max OTP resend attempts | 5 |
 | `RESET_PASSWORD_TOKEN_TTL_MINUTES` | Reset token TTL | 15 |
-| `METAMASK_CHALLENGE_TTL_MINUTES` | MetaMask challenge TTL | 2 |
 | `RESEND_API_KEY` | Resend API key | - |
 | `RESEND_FROM` | Email sender address | - |
 
@@ -98,7 +92,7 @@ The application uses YAML configuration files with environment variable override
 
 2. Update `config.yaml` with your settings (database, JWT secret, etc.)
 
-3. For Docker deployment, configure environment in `docker-compose.yml`
+3. For Docker deployment, put secrets in `.env`; non-secret config stays in `config.yaml`.
 
 ## Installation
 
@@ -115,17 +109,37 @@ npm run dev
 ### Docker Deployment
 
 ```bash
-# Start all services (PostgreSQL + App)
-docker-compose up -d
+# Start all services (PostgreSQL + App + Neo4j)
+docker compose up -d
 
 # View logs
-docker-compose logs -f app
+docker compose logs -f app
 
 # Stop services
-docker-compose down
+docker compose down
 
 # Rebuild after changes
-docker-compose up -d --build --force-recreate app
+docker compose up -d --build --force-recreate app
+```
+
+PostgreSQL runs in Docker via `postgis/postgis:16-3.4` with persistent named volume `postgres_data` and exposes `localhost:5433` by default to avoid conflicts with a local Postgres on `5432`. Override with `POSTGRES_HOST_PORT` if needed.
+
+Neo4j uses persistent named volumes for `/data`, `/logs`, `/var/lib/neo4j/import`, and `/plugins`.
+
+Backups are stored inside the Docker named volume `postgres_backups`, mounted at `/backups` in the Postgres container:
+
+```bash
+# Create a compressed dump inside postgres_backups
+make db-backup
+
+# List dumps in postgres_backups
+make db-backups
+
+# Restore a dump from postgres_backups
+make db-restore file=aioz_map_YYYYMMDD_HHMMSS.dump
+
+# Verify PostGIS extension
+make db-postgis
 ```
 
 ## API Documentation (Swagger)
@@ -194,10 +208,6 @@ http://localhost:3000/api
 | POST | `/auth/logout` | Logout and revoke session | Yes |
 | GET | `/auth/google` | Redirect to Google OAuth | No |
 | GET | `/auth/google/callback` | Google OAuth callback | No |
-| POST | `/auth/metamask/challenge` | Get MetaMask challenge | No |
-| POST | `/auth/metamask/signin` | Sign in with MetaMask | No |
-| POST | `/auth/metamask/link` | Link MetaMask wallet | Yes |
-| POST | `/auth/metamask/verify-link` | Verify wallet link | Yes |
 
 ### Users (`/users`)
 
@@ -214,7 +224,7 @@ http://localhost:3000/api
 
 ## Database Schema
 
-- **Users**: User accounts with email/password or wallet address
+- **Users**: User accounts with email/password and Google OAuth link
 - **Sessions**: Active user sessions with refresh tokens
 - **Auth Challenges**: OTP and verification challenges
 - **Password Resets**: Password reset tokens
