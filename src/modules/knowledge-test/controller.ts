@@ -19,6 +19,7 @@ import {
   ApiExtraModels,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
   getSchemaPath,
@@ -167,6 +168,11 @@ export class KnowledgeTestController {
   @Get(':id')
   @ApiOperation({ summary: 'Get test detail (with questions + options)' })
   @ApiParam({ name: 'id' })
+  @ApiQuery({
+    name: 'includeAnswers',
+    required: false,
+    description: 'true để trả kèm isCorrect (dùng cho trang admin edit)',
+  })
   @ApiResponse({
     status: 200,
     schema: {
@@ -176,8 +182,14 @@ export class KnowledgeTestController {
       ],
     },
   })
-  async getTestById(@Param('id') id: string) {
-    const result = await this.testService.getTestById(id);
+  async getTestById(
+    @Param('id') id: string,
+    @Query('includeAnswers') includeAnswers?: string,
+  ) {
+    const result = await this.testService.getTestById(
+      id,
+      includeAnswers === 'true',
+    );
     return Response.OK(result);
   }
 

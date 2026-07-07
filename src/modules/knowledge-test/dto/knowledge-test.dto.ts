@@ -127,6 +127,11 @@ export class UpdateKnowledgeTestBasicDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  heritageId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   title?: string;
 
   @ApiProperty({ required: false })
@@ -172,6 +177,11 @@ export class GetTestsQueryDto {
   @IsOptional()
   @IsString()
   status?: string = 'ALL';
+
+  @ApiProperty({ required: false, description: 'Tìm theo tiêu đề (chứa, không phân biệt hoa thường)' })
+  @IsOptional()
+  @IsString()
+  title?: string;
 }
 
 export class AnswerDto {

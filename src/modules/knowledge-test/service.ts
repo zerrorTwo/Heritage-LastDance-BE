@@ -80,6 +80,7 @@ export class KnowledgeTestService {
       page,
       limit,
       status: query.status,
+      title: query.title,
     });
 
     return {
@@ -97,7 +98,7 @@ export class KnowledgeTestService {
     };
   }
 
-  async getTestById(id: string) {
+  async getTestById(id: string, includeAnswers = false) {
     const test = await this.testRepo.findById(id);
     if (!test) throw new NotFoundException('Không tìm thấy bài kiểm tra');
 
@@ -112,10 +113,12 @@ export class KnowledgeTestService {
       optionsByQuestion.set(opt.questionId, arr);
     }
 
+    // Mặc định strip isCorrect để client làm bài không thấy đáp án;
+    // trang admin edit truyền includeAnswers=true để giữ lại
     const stripOption = (opt: any) => {
       const { isCorrect, ...rest } = opt;
       return {
-        ...rest,
+        ...(includeAnswers ? opt : rest),
         _id: opt.id,
         optionId: opt.id,
       };

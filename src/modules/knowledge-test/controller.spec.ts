@@ -7,6 +7,7 @@ import {
 import { KnowledgeTestController } from './controller';
 import { KnowledgeTestService } from './service';
 import { KnowledgeTestStatus } from './model';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 import type { JwtPayload } from '../../common/decorators/current-user.decorator';
 
 describe('KnowledgeTestController', () => {
@@ -83,6 +84,7 @@ describe('KnowledgeTestController', () => {
       controllers: [KnowledgeTestController],
       providers: [
         { provide: KnowledgeTestService, useValue: mockTestService },
+        { provide: CloudinaryProvider, useValue: { uploadStream: jest.fn() } },
       ],
     }).compile();
 
@@ -197,7 +199,7 @@ describe('KnowledgeTestController', () => {
       const result = await controller.getTestById('test-1');
 
       // Assert
-      expect(testService.getTestById).toHaveBeenCalledWith('test-1');
+      expect(testService.getTestById).toHaveBeenCalledWith('test-1', false);
       expect(result).toEqual({ data: mockTest });
     });
 

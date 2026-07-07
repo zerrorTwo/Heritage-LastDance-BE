@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, ILike, Repository } from 'typeorm';
 import {
   KnowledgeTestAttemptModel,
   KnowledgeTestModel,
@@ -24,12 +24,16 @@ export class KnowledgeTestRepository {
     page: number;
     limit: number;
     status?: string;
+    title?: string;
   }): Promise<{ results: KnowledgeTestModel[]; total: number }> {
-    const { page, limit, status } = opts;
-    const where =
-      status && status !== 'ALL'
-        ? { status: status as KnowledgeTestStatus }
-        : {};
+    const { page, limit, status, title } = opts;
+    const where: FindOptionsWhere<KnowledgeTestModel> = {};
+    if (status && status !== 'ALL') {
+      where.status = status as KnowledgeTestStatus;
+    }
+    if (title) {
+      where.title = ILike(`%${title}%`);
+    }
 
     const [results, total] = await this.repo.findAndCount({
       where,
