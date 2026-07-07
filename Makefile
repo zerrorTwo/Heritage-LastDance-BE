@@ -1,5 +1,5 @@
 .PHONY: dev build start stop logs db-backup db-backups db-restore db-postgis lint test test-e2e
-.PHONY: build-local sync build-prod up-prod down-prod restart-prod deploy logs-prod status-prod ssh-prod
+.PHONY: build-local sync build-prod up-prod down-prod restart-prod deploy logs-prod status-prod
 
 # ─── Dev / Local ──────────────────────────────────────────────────────────────
 dev:
@@ -66,6 +66,3 @@ logs-prod:
 
 status-prod:
 	python deploy.py status
-
-ssh-prod:
-	python deploy.py ssh
