@@ -38,6 +38,8 @@ export const getEnvironmentOrigins = (): string[] => {
             'http://180.93.43.7:3001',
             'http://180.93.43.7:3119',
             'http://180.93.43.7',
+            'https://heritage.thuandev.id.vn',
+            'https://ai.thuandev.id.vn',
         ];
     }
 
@@ -49,8 +51,8 @@ export const getEnvironmentOrigins = (): string[] => {
 
     // Default production origins (should be configured in production)
     return [
-        'https://yourdomain.com',
-        'https://www.yourdomain.com',
+        'https://heritage.thuandev.id.vn',
+        'https://ai.thuandev.id.vn',
     ];
 };
 

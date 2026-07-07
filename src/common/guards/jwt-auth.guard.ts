@@ -57,7 +57,8 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const decoded = jwt.verify(token, env.JWT_SECRET as string) as JwtPayload;
+      const secret = (env.JWT_SECRET || process.env.JWT_SECRET || 'dev-secret-key') as string;
+      const decoded = jwt.verify(token, secret) as JwtPayload;
 
       if (!decoded?.sub || !decoded?.sessionId) {
         throw new UnauthorizedException('Invalid token payload');
