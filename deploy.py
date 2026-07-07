@@ -82,9 +82,9 @@ class Deployer:
 
 def build_local():
     print("\n[build-local] Running npm run build...")
-    tsc = os.path.join(LOCAL_DIR, "node_modules", ".bin", "tsc")
-    if not os.path.exists(tsc):
-        tsc = os.path.join(LOCAL_DIR, "node_modules", "typescript", "bin", "tsc")
+    # Dung entry JS cua typescript truc tiep: node chay duoc tren moi OS.
+    # (node_modules/.bin/tsc la shell script POSIX, `node <file>` se crash tren Windows)
+    tsc = os.path.join(LOCAL_DIR, "node_modules", "typescript", "bin", "tsc")
     subprocess.run(f"node {tsc} -p tsconfig.json", cwd=LOCAL_DIR, shell=True, check=True)
 
     src_templates = os.path.join(LOCAL_DIR, "src", "pkg", "mail", "templates")
