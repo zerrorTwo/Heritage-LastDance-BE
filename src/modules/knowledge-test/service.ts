@@ -4,12 +4,15 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   KnowledgeTestAttemptRepository,
   KnowledgeTestOptionRepository,
   KnowledgeTestQuestionRepository,
   KnowledgeTestRepository,
 } from './repository';
+import { UserModel } from '../user/model';
 import {
   AddOptionDto,
   AddQuestionDto,
@@ -30,6 +33,8 @@ export class KnowledgeTestService {
     private readonly optionRepo: KnowledgeTestOptionRepository,
     private readonly attemptRepo: KnowledgeTestAttemptRepository,
     private readonly leaderboardService: LeaderboardService,
+    @InjectRepository(UserModel)
+    private readonly userRepo: Repository<UserModel>,
   ) {}
 
   // =================== Test CRUD ===================
@@ -171,6 +176,11 @@ export class KnowledgeTestService {
     const test = await this.testRepo.findById(testId);
     if (!test) throw new NotFoundException('Không tìm thấy bài kiểm tra');
 
+    // JWT chỉ chứa sub + sessionId nên userName truyền vào luôn null.
+    // Tra tên thật từ DB để lưu vào attempt + leaderboard.
+    const dbUser = await this.userRepo.findOneBy({ id: userId });
+    const resolvedName = dbUser?.displayname || dbUser?.email || userName;
+
     const questions = await this.questionRepo.findByTestId(testId);
     const questionIds = questions.map((q) => q.id);
     const allOptions = await this.optionRepo.findByQuestionIds(questionIds);
@@ -202,7 +212,7 @@ export class KnowledgeTestService {
     await this.attemptRepo.create({
       testId,
       userId,
-      userName,
+      userName: resolvedName,
       score: finalScore,
       totalQuestions,
       correctAnswers: correct,
@@ -220,7 +230,7 @@ export class KnowledgeTestService {
     await this.leaderboardService.addOrUpdateEntry(test.heritageId, {
       userId,
       score: finalScore,
-      displayName: userName ?? undefined,
+      displayName: resolvedName ?? undefined,
       completedAt: new Date(),
     } as any);
 

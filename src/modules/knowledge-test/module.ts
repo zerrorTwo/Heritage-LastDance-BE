@@ -15,6 +15,7 @@ import {
 import { KnowledgeTestService } from './service';
 import { KnowledgeTestController } from './controller';
 import { LeaderboardModule } from '../leaderboard/module';
+import { UserModel } from '../user/model';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { LeaderboardModule } from '../leaderboard/module';
       KnowledgeTestQuestionModel,
       KnowledgeTestOptionModel,
       KnowledgeTestAttemptModel,
+      UserModel,
     ]),
     LeaderboardModule,
   ],
