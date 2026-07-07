@@ -16,6 +16,7 @@ import { KnowledgeTestService } from './service';
 import { KnowledgeTestController } from './controller';
 import { LeaderboardModule } from '../leaderboard/module';
 import { UserModel } from '../user/model';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { UserModel } from '../user/model';
     KnowledgeTestOptionRepository,
     KnowledgeTestAttemptRepository,
     KnowledgeTestService,
+    CloudinaryProvider,
   ],
   exports: [KnowledgeTestService],
 })

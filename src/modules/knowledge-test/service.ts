@@ -138,7 +138,36 @@ export class KnowledgeTestService {
     const test = await this.testRepo.findById(id);
     if (!test) throw new NotFoundException('Không tìm thấy bài kiểm tra');
 
-    await this.testRepo.update(id, dto);
+    const { questions, ...basic } = dto;
+    if (Object.keys(basic).length > 0) {
+      await this.testRepo.update(id, basic);
+    }
+
+    // Trang admin Update gửi replace-all: tạo lại toàn bộ câu hỏi theo payload
+    // (câu hỏi bị xóa trên UI chỉ vắng mặt trong payload, không có lệnh DELETE riêng)
+    if (questions) {
+      await this.questionRepo.deleteByTestId(id);
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const question = await this.questionRepo.create({
+          testId: id,
+          content: q.content,
+          explanation: q.explanation ?? null,
+          image: q.image ?? null,
+          position: i + 1,
+        });
+
+        await this.optionRepo.bulkCreate(
+          q.options.map((o, idx) => ({
+            questionId: question.id,
+            optionText: o.optionText,
+            isCorrect: o.isCorrect,
+            position: idx + 1,
+          })),
+        );
+      }
+    }
+
     return this.getTestById(id);
   }
 
