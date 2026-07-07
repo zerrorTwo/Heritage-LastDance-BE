@@ -16,6 +16,7 @@ import { KnowledgeTestService } from './service';
 import { KnowledgeTestController } from './controller';
 import { LeaderboardModule } from '../leaderboard/module';
 import { UserModel } from '../user/model';
+import { HeritageItem } from '../heritage/model';
 import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 @Module({
@@ -26,6 +27,7 @@ import { CloudinaryProvider } from '../../providers/cloudinary.provider';
       KnowledgeTestOptionModel,
       KnowledgeTestAttemptModel,
       UserModel,
+      HeritageItem,
     ]),
     LeaderboardModule,
   ],

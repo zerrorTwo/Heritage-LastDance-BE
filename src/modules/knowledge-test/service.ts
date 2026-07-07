@@ -5,7 +5,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   KnowledgeTestAttemptRepository,
   KnowledgeTestOptionRepository,
@@ -13,6 +13,7 @@ import {
   KnowledgeTestRepository,
 } from './repository';
 import { UserModel } from '../user/model';
+import { HeritageItem } from '../heritage/model';
 import {
   AddOptionDto,
   AddQuestionDto,
@@ -35,6 +36,8 @@ export class KnowledgeTestService {
     private readonly leaderboardService: LeaderboardService,
     @InjectRepository(UserModel)
     private readonly userRepo: Repository<UserModel>,
+    @InjectRepository(HeritageItem)
+    private readonly heritageRepo: Repository<HeritageItem>,
   ) {}
 
   // =================== Test CRUD ===================
@@ -83,10 +86,21 @@ export class KnowledgeTestService {
       title: query.title,
     });
 
+    // Kèm tên di sản cho trang admin (heritage có thể đã bị xóa → null)
+    const heritageIds = [...new Set(results.map((t) => t.heritageId))];
+    const heritages = heritageIds.length
+      ? await this.heritageRepo.find({
+          where: { id: In(heritageIds) },
+          select: ['id', 'title'],
+        })
+      : [];
+    const heritageNameById = new Map(heritages.map((h) => [h.id, h.title]));
+
     return {
       results: results.map((test) => ({
         ...test,
         _id: test.id,
+        heritageName: heritageNameById.get(test.heritageId) ?? null,
       })),
       totalCount: total,
       pagination: {
