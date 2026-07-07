@@ -118,6 +118,12 @@ export class AuthService {
     const otpCode = generateOTP();
 
     await this.mailService.sendOtpEmail(email, otpCode);
+    console.log(`[OTP LOG] New signup for ${email} - OTP: ${otpCode}`);
+
+    await this.auditRepo.create({
+      action: AuditAction.OTP_SENT,
+      resourceType: 'AUTH_CHALLENGE',
+    });
 
     const hashedOTP = await hashBcrypt(otpCode);
     const hashedPassword = await hashBcrypt(password);
@@ -135,6 +141,11 @@ export class AuthService {
       expiredAt: new Date(now.getTime() + getOtpExpireMs()),
       attempts: 0,
       authToken: authTokenHash,
+    });
+
+    await this.auditRepo.create({
+      action: AuditAction.SIGNUP_ATTEMPT,
+      resourceType: 'AUTH_CHALLENGE',
     });
 
     return authToken;
@@ -170,6 +181,21 @@ export class AuthService {
     authChallenge.isUsed = true;
     await this.authRepo.upsert(authChallenge);
 
+    await this.auditRepo.create({
+      userId: currentUser.id,
+      action: AuditAction.OTP_VERIFIED,
+      resourceType: 'AUTH_CHALLENGE',
+      resourceId: authChallenge.id,
+      ipAddress,
+    });
+    await this.auditRepo.create({
+      userId: currentUser.id,
+      action: AuditAction.SIGNUP,
+      resourceType: 'USER',
+      resourceId: currentUser.id,
+      ipAddress,
+    });
+
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = md5(refreshToken);
     const now2 = new Date();
@@ -196,7 +222,7 @@ export class AuthService {
   }
 
   async resendOtp(token: string): Promise<void> {
-    const authChallenge = await this.authRepo.getByAuthToken(token);
+    const authChallenge = await this.authRepo.getByAuthToken(md5(token));
     if (!authChallenge) {
       throw new BadRequestException('Invalid session to resend OTP!');
     }
@@ -212,6 +238,13 @@ export class AuthService {
 
     const otpCode = generateOTP();
     await this.mailService.sendOtpEmail(authChallenge.identifier, otpCode);
+    console.log(`[OTP LOG] Resend for ${authChallenge.identifier} - OTP: ${otpCode}`);
+
+    await this.auditRepo.create({
+      action: AuditAction.OTP_RESEND,
+      resourceType: 'AUTH_CHALLENGE',
+      resourceId: authChallenge.id,
+    });
 
     const hashedOTP = await hashBcrypt(otpCode);
 

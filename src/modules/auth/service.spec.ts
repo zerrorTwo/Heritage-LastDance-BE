@@ -425,6 +425,7 @@ describe('AuthService', () => {
         createdAt: new Date(),
       });
 
+      (md5 as jest.Mock).mockReturnValue('hashed-auth-token');
       mockAuthRepo.getByAuthToken.mockResolvedValue(mockChallenge);
       (generateOTP as jest.Mock).mockReturnValue('654321');
       (hashBcrypt as jest.Mock).mockResolvedValue('new-hashed-otp');
@@ -432,6 +433,8 @@ describe('AuthService', () => {
 
       await service.resendOtp(token);
 
+      expect(md5).toHaveBeenCalledWith('auth-token');
+      expect(mockAuthRepo.getByAuthToken).toHaveBeenCalledWith('hashed-auth-token');
       expect(mockMailService.sendOtpEmail).toHaveBeenCalledWith(
         mockChallenge.identifier,
         '654321',
@@ -442,6 +445,9 @@ describe('AuthService', () => {
           challenge: 'new-hashed-otp',
           attempts: 1,
         }),
+      );
+      expect(mockAuditRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.OTP_RESEND }),
       );
     });
 
