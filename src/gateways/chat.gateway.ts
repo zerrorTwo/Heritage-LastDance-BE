@@ -97,7 +97,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     client.leave(roomId);
-    client.broadcast.to(roomId).emit('user-left', { userId, roomId });
+    const username = client.data.username as string;
+    client.broadcast.to(roomId).emit('user-left', { userId, username, roomId });
 
     const users = await this.chatRoomService.getRoomUsers(heritageId);
     this.server.to(roomId).emit('room-users', { roomId, users });

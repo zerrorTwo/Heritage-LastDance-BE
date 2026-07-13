@@ -141,8 +141,33 @@ export class HeritageRepository {
           'DESC',
         );
     } else if (filter?.sort) {
-      const order = filter.order || 'ASC';
-      query.orderBy(`heritage.${filter.sort}`, order);
+      let sortField = filter.sort;
+      let order = filter.order || 'ASC';
+
+      // Support hyphenated formats like "titleOrder-asc" or "createdAt-desc"
+      if (sortField.includes('-')) {
+        const parts = sortField.split('-');
+        sortField = parts[0];
+        const rawOrder = parts[1]?.toUpperCase();
+        order = rawOrder === 'DESC' ? 'DESC' : 'ASC';
+      }
+
+      // Map frontend sort fields to valid database columns
+      const fieldMap: Record<string, string> = {
+        title: 'title',
+        titleOrder: 'title',
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt',
+        publishedAt: 'publishedAt',
+        type: 'type',
+      };
+
+      const mappedField = fieldMap[sortField];
+      if (mappedField) {
+        query.orderBy(`heritage.${mappedField}`, order);
+      } else {
+        query.orderBy('heritage.createdAt', 'DESC');
+      }
     } else {
       query.orderBy('heritage.createdAt', 'DESC');
     }

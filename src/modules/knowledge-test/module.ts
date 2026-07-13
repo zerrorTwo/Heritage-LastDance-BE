@@ -15,6 +15,9 @@ import {
 import { KnowledgeTestService } from './service';
 import { KnowledgeTestController } from './controller';
 import { LeaderboardModule } from '../leaderboard/module';
+import { UserModel } from '../user/model';
+import { HeritageItem } from '../heritage/model';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 
 @Module({
   imports: [
@@ -23,6 +26,8 @@ import { LeaderboardModule } from '../leaderboard/module';
       KnowledgeTestQuestionModel,
       KnowledgeTestOptionModel,
       KnowledgeTestAttemptModel,
+      UserModel,
+      HeritageItem,
     ]),
     LeaderboardModule,
   ],
@@ -33,6 +38,7 @@ import { LeaderboardModule } from '../leaderboard/module';
     KnowledgeTestOptionRepository,
     KnowledgeTestAttemptRepository,
     KnowledgeTestService,
+    CloudinaryProvider,
   ],
   exports: [KnowledgeTestService],
 })

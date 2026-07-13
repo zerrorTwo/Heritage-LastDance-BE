@@ -4,12 +4,16 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
 import {
   KnowledgeTestAttemptRepository,
   KnowledgeTestOptionRepository,
   KnowledgeTestQuestionRepository,
   KnowledgeTestRepository,
 } from './repository';
+import { UserModel } from '../user/model';
+import { HeritageItem } from '../heritage/model';
 import {
   AddOptionDto,
   AddQuestionDto,
@@ -30,6 +34,10 @@ export class KnowledgeTestService {
     private readonly optionRepo: KnowledgeTestOptionRepository,
     private readonly attemptRepo: KnowledgeTestAttemptRepository,
     private readonly leaderboardService: LeaderboardService,
+    @InjectRepository(UserModel)
+    private readonly userRepo: Repository<UserModel>,
+    @InjectRepository(HeritageItem)
+    private readonly heritageRepo: Repository<HeritageItem>,
   ) {}
 
   // =================== Test CRUD ===================
@@ -75,12 +83,24 @@ export class KnowledgeTestService {
       page,
       limit,
       status: query.status,
+      title: query.title,
     });
+
+    // Kèm tên di sản cho trang admin (heritage có thể đã bị xóa → null)
+    const heritageIds = [...new Set(results.map((t) => t.heritageId))];
+    const heritages = heritageIds.length
+      ? await this.heritageRepo.find({
+          where: { id: In(heritageIds) },
+          select: ['id', 'title'],
+        })
+      : [];
+    const heritageNameById = new Map(heritages.map((h) => [h.id, h.title]));
 
     return {
       results: results.map((test) => ({
         ...test,
         _id: test.id,
+        heritageName: heritageNameById.get(test.heritageId) ?? null,
       })),
       totalCount: total,
       pagination: {
@@ -92,7 +112,7 @@ export class KnowledgeTestService {
     };
   }
 
-  async getTestById(id: string) {
+  async getTestById(id: string, includeAnswers = false) {
     const test = await this.testRepo.findById(id);
     if (!test) throw new NotFoundException('Không tìm thấy bài kiểm tra');
 
@@ -107,10 +127,12 @@ export class KnowledgeTestService {
       optionsByQuestion.set(opt.questionId, arr);
     }
 
+    // Mặc định strip isCorrect để client làm bài không thấy đáp án;
+    // trang admin edit truyền includeAnswers=true để giữ lại
     const stripOption = (opt: any) => {
       const { isCorrect, ...rest } = opt;
       return {
-        ...rest,
+        ...(includeAnswers ? opt : rest),
         _id: opt.id,
         optionId: opt.id,
       };
@@ -133,7 +155,36 @@ export class KnowledgeTestService {
     const test = await this.testRepo.findById(id);
     if (!test) throw new NotFoundException('Không tìm thấy bài kiểm tra');
 
-    await this.testRepo.update(id, dto);
+    const { questions, ...basic } = dto;
+    if (Object.keys(basic).length > 0) {
+      await this.testRepo.update(id, basic);
+    }
+
+    // Trang admin Update gửi replace-all: tạo lại toàn bộ câu hỏi theo payload
+    // (câu hỏi bị xóa trên UI chỉ vắng mặt trong payload, không có lệnh DELETE riêng)
+    if (questions) {
+      await this.questionRepo.deleteByTestId(id);
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const question = await this.questionRepo.create({
+          testId: id,
+          content: q.content,
+          explanation: q.explanation ?? null,
+          image: q.image ?? null,
+          position: i + 1,
+        });
+
+        await this.optionRepo.bulkCreate(
+          q.options.map((o, idx) => ({
+            questionId: question.id,
+            optionText: o.optionText,
+            isCorrect: o.isCorrect,
+            position: idx + 1,
+          })),
+        );
+      }
+    }
+
     return this.getTestById(id);
   }
 
@@ -171,6 +222,11 @@ export class KnowledgeTestService {
     const test = await this.testRepo.findById(testId);
     if (!test) throw new NotFoundException('Không tìm thấy bài kiểm tra');
 
+    // JWT chỉ chứa sub + sessionId nên userName truyền vào luôn null.
+    // Tra tên thật từ DB để lưu vào attempt + leaderboard.
+    const dbUser = await this.userRepo.findOneBy({ id: userId });
+    const resolvedName = dbUser?.displayname || dbUser?.email || userName;
+
     const questions = await this.questionRepo.findByTestId(testId);
     const questionIds = questions.map((q) => q.id);
     const allOptions = await this.optionRepo.findByQuestionIds(questionIds);
@@ -202,7 +258,7 @@ export class KnowledgeTestService {
     await this.attemptRepo.create({
       testId,
       userId,
-      userName,
+      userName: resolvedName,
       score: finalScore,
       totalQuestions,
       correctAnswers: correct,
@@ -220,7 +276,7 @@ export class KnowledgeTestService {
     await this.leaderboardService.addOrUpdateEntry(test.heritageId, {
       userId,
       score: finalScore,
-      displayName: userName ?? undefined,
+      displayName: resolvedName ?? undefined,
       completedAt: new Date(),
     } as any);
 

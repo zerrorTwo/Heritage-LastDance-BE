@@ -1,0 +1,78 @@
+# =============================================
+# Docker Compose + Local Dev
+# App config lives in configs/dev.yaml
+# Docker overrides in docker-compose.yaml
+# =============================================
+
+APP_PORT=3000
+ALLOWED_ORIGINS=https://heritage.thuandev.id.vn,https://ai.thuandev.id.vn,http://localhost:5173,http://localhost:3000
+FRONTEND_URL=https://heritage.thuandev.id.vn
+MAIL_CLIENT_PORT=1080
+FILE_DRIVER=local
+
+# Auth
+JWT_SECRET=your-super-secret-jwt-key
+JWT_EXPIRES_IN=7d
+SESSION_TTL_HOURS=168
+REFRESH_TOKEN_TTL_DAYS=30
+AUTH_JWT_SECRET=your-super-secret-jwt-key
+AUTH_JWT_TOKEN_EXPIRES_IN=7d
+AUTH_REFRESH_SECRET=your-super-secret-refresh-key
+AUTH_REFRESH_TOKEN_EXPIRES_IN=30d
+AUTH_FORGOT_SECRET=your-super-secret-forgot-key
+AUTH_FORGOT_TOKEN_EXPIRES_IN=30m
+AUTH_CONFIRM_EMAIL_SECRET=your-super-secret-confirm-key
+AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
+
+# Docker postgres (only used in Docker via docker-compose)
+DATABASE_TYPE=postgres
+DATABASE_HOST=postgres
+DATABASE_PORT=5432
+DATABASE_USERNAME=heritage_ai
+DATABASE_PASSWORD=heritage_ai_secret
+DATABASE_NAME=heritage_ai
+DATABASE_SYNCHRONIZE=true
+DATABASE_SSL_ENABLED=false
+DATABASE_MAX_CONNECTIONS=20
+
+# Docker maildev
+MAIL_HOST=maildev
+MAIL_PORT=1025
+MAIL_USER=
+MAIL_PASSWORD=
+MAIL_IGNORE_TLS=true
+MAIL_SECURE=false
+MAIL_REQUIRE_TLS=false
+MAIL_DEFAULT_EMAIL=noreply@heritage.dev
+MAIL_DEFAULT_NAME=Heritage
+
+NEO4J_ENABLED=true
+NEO4J_URI=neo4j+s://b92d0c6c.databases.neo4j.io
+NEO4J_USER=namle
+NEO4J_PASSWORD=Anhnam123@
+NEO4J_DATABASE=neo4j
+NEO4J_MAX_CONNECTION_POOL_SIZE=50
+NEO4J_CONNECTION_ACQUISITION_TIMEOUT_MS=60000
+NEO4J_CONNECTION_TIMEOUT_MS=30000
+NEO4J_MAX_TRANSACTION_RETRY_TIME_MS=30000
+
+# Cloudinary Integration
+CLOUDINARY_CLOUD_NAME=dtbmsncin
+CLOUDINARY_API_KEY=145219931676787
+CLOUDINARY_API_SECRET=c_v_OTmPRVsIwZz1cs0U-604VVE
+
+# Resend Email Integration
+RESEND_API_KEY=re_SckvTagL_9nEUV6zhMZdNgLZhYFhtAjKX
+RESEND_FROM=Heritage Dev <onboarding@resend.dev>
+
+# AI Service Integration
+AI_SERVICE_URL=http://180.93.43.7:5055
+AI_MAP_URL=http://180.93.43.7:8001
+AI_SERVICE_TOKEN=c67e8515cf7d16063d33bab2275fc7f261f885ebcfb4a1dff2ca9989c73d4c0f
+AI_CHAT_MODE=llm_9router
+NINEROUTER_URL=http://180.93.43.7:20128
+NINEROUTER_KEY=sk-8e2c1ff41ce0bd33-81ypvp-305f4e19
+NINEROUTER_MODEL=ModelFree-high
+
+# Google OAuth Integration
+GOOGLE_CALLBACK_URL=https://heritage.thuandev.id.vn/v1/auth/google/callback

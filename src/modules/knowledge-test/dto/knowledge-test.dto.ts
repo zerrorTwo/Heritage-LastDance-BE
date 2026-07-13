@@ -78,7 +78,57 @@ export class CreateKnowledgeTestDto {
   topPerformersLimit?: number;
 }
 
+export class UpdateTestOptionDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  optionText!: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  isCorrect!: boolean;
+}
+
+export class UpdateTestQuestionDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  explanation?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  image?: string;
+
+  @ApiProperty({ type: [UpdateTestOptionDto], minimum: 2 })
+  @IsArray()
+  @ArrayMinSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => UpdateTestOptionDto)
+  options!: UpdateTestOptionDto[];
+}
+
 export class UpdateKnowledgeTestBasicDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  heritageId?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
@@ -98,6 +148,14 @@ export class UpdateKnowledgeTestBasicDto {
   @IsOptional()
   @IsInt()
   topPerformersLimit?: number;
+
+  // Trang admin Update gửi kèm toàn bộ câu hỏi (replace-all)
+  @ApiProperty({ type: [UpdateTestQuestionDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateTestQuestionDto)
+  questions?: UpdateTestQuestionDto[];
 }
 
 export class GetTestsQueryDto {
@@ -119,6 +177,11 @@ export class GetTestsQueryDto {
   @IsOptional()
   @IsString()
   status?: string = 'ALL';
+
+  @ApiProperty({ required: false, description: 'Tìm theo tiêu đề (chứa, không phân biệt hoa thường)' })
+  @IsOptional()
+  @IsString()
+  title?: string;
 }
 
 export class AnswerDto {

@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: heritage-be
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env
+    environment:
+      DOCKER: "true"
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+    volumes:
+      - /heritage-stag/AI-MAP/data:/Map/data:ro
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: heritage-be-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-123456}
+      POSTGRES_DB: ${DATABASE_NAME:-heritage}
+    volumes:
+      - be_postgres_data:/var/lib/postgresql/data
+      - be_postgres_backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: heritage-be-neo4j
+    restart: unless-stopped
+    ports:
+      - "7475:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/heritage_neo4j
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+    volumes:
+      - be_neo4j_data:/data
+      - be_neo4j_logs:/logs
+      - be_neo4j_import:/var/lib/neo4j/import
+      - be_neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  be_postgres_data:
+  be_postgres_backups:
+  be_neo4j_data:
+  be_neo4j_logs:
+  be_neo4j_import:
+  be_neo4j_plugins:

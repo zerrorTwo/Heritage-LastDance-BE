@@ -8,7 +8,7 @@ type JsonValue = Record<string, any> | any[] | string | number | boolean | null;
 
 @Injectable()
 export class MapGatewayService {
-  private readonly baseUrl = (process.env.AI_SERVICE_URL || 'http://localhost:8001').replace(/\/$/, '');
+  private readonly baseUrl = (process.env.AI_MAP_URL || process.env.AI_SERVICE_URL || 'http://localhost:8001').replace(/\/$/, '');
 
   async health() {
     const ai = await this.request('/health', { timeoutMs: 5000 });

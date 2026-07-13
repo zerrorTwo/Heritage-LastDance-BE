@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,14 +8,18 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
   ApiExtraModels,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
   getSchemaPath,
@@ -31,6 +36,7 @@ import {
   UpdateQuestionDto,
 } from './dto/knowledge-test.dto';
 import { GeneralResponse, Response } from '../../common/response';
+import { CloudinaryProvider } from '../../providers/cloudinary.provider';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import {
@@ -62,9 +68,42 @@ import {
 @ApiTags('KnowledgeTests')
 @Controller('knowledge-tests')
 export class KnowledgeTestController {
-  constructor(private readonly testService: KnowledgeTestService) {}
+  constructor(
+    private readonly testService: KnowledgeTestService,
+    private readonly cloudinaryProvider: CloudinaryProvider,
+  ) {}
 
   // =================== Test ===================
+
+  @Post('upload')
+  @ApiOperation({ summary: 'Upload question image (multipart field: image)' })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: { fileSize: 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return callback(new BadRequestException('Invalid image type'), false);
+        }
+        return callback(null, true);
+      },
+    }),
+  )
+  async uploadImage(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Image file is required');
+
+    const uploaded = await this.cloudinaryProvider.uploadStream(
+      file,
+      'knowledge-tests',
+    );
+
+    // Trả raw (không bọc GeneralResponse) — FE đọc thẳng imageUrl,
+    // giống hệt POST /media/upload
+    return {
+      imageUrl: uploaded.secure_url,
+      publicId: uploaded.public_id,
+    };
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create new knowledge test' })
@@ -129,6 +168,11 @@ export class KnowledgeTestController {
   @Get(':id')
   @ApiOperation({ summary: 'Get test detail (with questions + options)' })
   @ApiParam({ name: 'id' })
+  @ApiQuery({
+    name: 'includeAnswers',
+    required: false,
+    description: 'true để trả kèm isCorrect (dùng cho trang admin edit)',
+  })
   @ApiResponse({
     status: 200,
     schema: {
@@ -138,8 +182,14 @@ export class KnowledgeTestController {
       ],
     },
   })
-  async getTestById(@Param('id') id: string) {
-    const result = await this.testService.getTestById(id);
+  async getTestById(
+    @Param('id') id: string,
+    @Query('includeAnswers') includeAnswers?: string,
+  ) {
+    const result = await this.testService.getTestById(
+      id,
+      includeAnswers === 'true',
+    );
     return Response.OK(result);
   }
 

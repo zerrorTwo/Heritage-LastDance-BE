@@ -60,6 +60,13 @@ export class KnowledgeTestResponseDto {
   @ApiProperty()
   heritageId!: string;
 
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Tên di sản (chỉ có ở API list; null nếu heritage đã bị xóa)',
+  })
+  heritageName?: string | null;
+
   @ApiProperty()
   title!: string;
 

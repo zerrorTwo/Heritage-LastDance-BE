@@ -127,15 +127,17 @@ export class LeaderboardEntryRepository {
     );
 
     if (existing) {
-      // Chỉ cập nhật nếu score mới cao hơn (giữ best score)
+      // Score giữ best score, nhưng displayName/avatar luôn cập nhật —
+      // nếu không, entry cũ có tên null sẽ null vĩnh viễn khi không phá kỷ lục
+      const patch: Partial<LeaderboardEntryModel> = {
+        avatar: data.avatar ?? existing.avatar,
+        displayName: data.displayName ?? existing.displayName,
+      };
       if (data.score > existing.score) {
-        await this.repo.update(existing.id, {
-          score: data.score,
-          avatar: data.avatar ?? existing.avatar,
-          displayName: data.displayName ?? existing.displayName,
-          completedAt: data.completedAt ?? new Date(),
-        });
+        patch.score = data.score;
+        patch.completedAt = data.completedAt ?? new Date();
       }
+      await this.repo.update(existing.id, patch);
       return (await this.repo.findOne({ where: { id: existing.id } }))!;
     }
 

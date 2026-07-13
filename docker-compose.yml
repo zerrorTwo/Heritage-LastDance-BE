@@ -7,14 +7,14 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "${APP_PORT:-3000}:3000"
-    env_file:
-      - .env
+      - "${APP_PORT:-3002}:3000"
     environment:
       DOCKER: "true"
+      APP_PORT: "3000"
       DATABASE_HOST: ${DATABASE_HOST:-postgres}
       DATABASE_PORT: ${DATABASE_PORT:-5432}
       DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-123456}
       DATABASE_NAME: ${DATABASE_NAME:-heritage}
       DATABASE_SSL_ENABLED: ${DATABASE_SSL_ENABLED:-false}
 

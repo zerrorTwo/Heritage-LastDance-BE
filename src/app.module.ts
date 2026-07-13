@@ -68,7 +68,7 @@ const env = loadEnv();
     }),
 
     ThrottlerModule.forRoot({
-      ttl: parseInt(String(env.THROTTLE_TTL || '60')) * 1000,
+      ttl: parseInt(String(env.THROTTLE_TTL || '60')),
       limit: parseInt(String(env.THROTTLE_LIMIT || '60')),
     }),
 

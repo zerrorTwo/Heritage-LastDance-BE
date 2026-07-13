@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseInterceptors, CacheInterceptor } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { HeritageService } from './service';
 import { CreateHeritageDto } from './dto/create-heritage.dto';
 import { UpdateHeritageDto } from './dto/update-heritage.dto';
@@ -7,14 +7,15 @@ import { UpdateHeritageDto } from './dto/update-heritage.dto';
 export class HeritageController {
   constructor(private readonly heritageService: HeritageService) {}
 
+  // Không dùng CacheInterceptor: nó cache theo URL và KHÔNG bị updateHeritage xoá,
+  // gây "sửa xong load lại vẫn thấy cũ". Service đã có cache thủ công (heritage:id/slug)
+  // được update/delete invalidate đúng.
   @Get('slug/:slug')
-  @UseInterceptors(CacheInterceptor)
   async getHeritageBySlug(@Param('slug') slug: string) {
     return this.heritageService.getHeritageBySlug(slug);
   }
 
   @Get(':id')
-  @UseInterceptors(CacheInterceptor)
   async getHeritageById(@Param('id') id: string) {
     return this.heritageService.getHeritageById(id);
   }
