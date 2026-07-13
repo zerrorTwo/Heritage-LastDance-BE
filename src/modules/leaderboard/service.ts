@@ -126,7 +126,13 @@ export class LeaderboardService {
     const limit = query.limit ?? 20;
 
     const lb = await this.leaderboardRepo.findByHeritageId(heritageId);
-    if (!lb) throw new NotFoundException('Leaderboard not found!');
+    if (!lb) {
+      return {
+        rankings: [],
+        stats: { totalParticipants: 0, highestScore: 0, averageScore: 0 },
+        pagination: { page, limit, totalPages: 0, totalItems: 0 },
+      };
+    }
 
     const { results: rankings, total: totalItems } =
       await this.entryRepo.findByLeaderboardPaginated(lb.id, page, limit);
